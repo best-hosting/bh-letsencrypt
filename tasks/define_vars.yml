@@ -1,0 +1,52 @@
+- block:
+    - name: Define cert dir
+      set_fact:
+        # Generating `sans`: Select only `name` attribute, convert each element
+        # to two-value list, where second value is word 'DNS:', then reverse
+        # and join this internal list elements. So, i'll get valid SAN domain
+        # name specification.
+        letsencrypt_files: >
+          {{ letsencrypt_files | default([]) + [item | combine(
+                { 'dir'       : cert_root_dir + item.name + '/'
+                , 'privkey'   : cert_root_dir + item.name + '/privkey.key'
+                , 'csr'       : cert_root_dir + item.name + '/req.csr'
+                , 'cert'      : cert_root_dir + item.name + '/cert.pem'
+                , 'fullchain' : cert_root_dir + item.name + '/fullchain.pem'
+                , 'cn'        : item.sans[0].name
+                , 'sans'      : item.sans | map(attribute='name')
+                    | zip_longest([], fillvalue='DNS:') | map('reverse') | map('join') | list
+                })]
+          }}
+      with_items: "{{ letsencrypt_certs }}"
+    - name: Added cert dir
+      debug:
+        var: letsencrypt_files
+
+    - name: Build `acme_key` value for wildcard names.
+      set_fact:
+        cert_sans2: >
+          {{ cert_sans2 | default([]) + [ item.1 | combine(
+              { 'acme_key' : '_acme-challenge.' + item.1['name'].split('.')[1:] | join ('.')
+              }) ]
+          }}
+      when: item.1['name'].split('.')[0] == '*'
+      with_subelements:
+        - "{{ letsencrypt_certs }}"
+        - sans
+    - name: Build `acme_key` value for regular DNS names.
+      set_fact:
+        cert_sans2: >
+          {{ cert_sans2 | default([]) + [ item.1 | combine(
+              { 'acme_key' : '_acme-challenge.' + item.1['name'].split('.')[0:] | join ('.')
+              }) ]
+          }}
+      when: item.1['name'].split('.')[0] != '*'
+      with_subelements:
+        - "{{ letsencrypt_certs }}"
+        - sans
+    - name: Cert sans with `acme_key`
+      debug:
+        var: cert_sans2
+  tags:
+    - 'debug'
+

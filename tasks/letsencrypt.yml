@@ -1,0 +1,142 @@
+---
+
+- block:
+    #pre_tasks:
+    - name: Install required python modules
+      apt:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - python-openssl
+        - python-dnspython
+        - python-pyasn1
+        - python-rsa
+    - name: Create directories for certificates
+      file:
+        path: "{{ item.dir }}"
+        mode: 0700
+        owner: root
+        group: root
+        state: directory
+      loop: "{{ letsencrypt_files }}"
+    - name: Generate private key
+      openssl_privatekey:
+        path: "{{ item.privkey }}"
+        mode: 0600
+        size: 2048
+        type: RSA
+        force: no
+        state: present
+      loop: "{{ letsencrypt_files }}"
+    - name: Generate CSR
+      openssl_csr:
+        privatekey_path:  "{{ item.privkey }}"
+        path:             "{{ item.csr }}"
+        common_name:      "{{ item.cn }}"
+        subject_alt_name: "{{ item.sans }}"
+        force: no
+        state: present
+      loop: "{{ letsencrypt_files }}"
+  tags:
+    - 'letsencrypt_files'
+
+- block:
+    - name: Check saved acme challenge
+      local_action: stat path=acme_challenge.txt
+      register: acme_challenge_saved
+    - name: acme stage 1
+      letsencrypt:
+        account_key_content: "{{ item.acme_account_key }}"
+        acme_directory: "https://acme-v02.api.letsencrypt.org/directory"
+        acme_version: 2
+        challenge: "dns-01"
+        csr:  "{{ item.csr }}"
+        # Delete old certificate before reissue!
+        dest: "{{ item.cert }}"
+        fullchain_dest: "{{ item.fullchain }}"
+      when: not acme_challenge_saved.stat.exists
+      register: acme_challenge
+      loop: "{{ letsencrypt_files }}"
+    # This task _must_ follow `acme stage 1`, because otherwise `register` on
+    # `acme stage 1` will overwrite loaded value of `acme_challenge`.
+    - name: Load acme challenge saved from prvious run, if any
+      set_fact:
+        acme_challenge: "{{ lookup('file', 'acme_challenge.txt') }}"
+      when: acme_challenge_saved.stat.exists
+    - name: Save acme challenge locally, if it was not loaded from file
+      local_action: copy content={{ acme_challenge }} dest=acme_challenge.txt
+      # `acme_challenge` is _not_ changed, when certificate is _not_ due for
+      # renewal. And in that case there may be no saved challenge and i have
+      # nothing to save either.
+      when: not acme_challenge_saved.stat.exists and acme_challenge is changed
+    - name: Print acme challenge
+      debug:
+        var: acme_challenge
+  tags:
+    - 'acme_1'
+
+- block:
+    - name: Add acme DNS-01 challenge RRs
+      nsupdate:
+        key_algorithm:  "{{ item.1.ddns.key_algo }}"
+        key_name:       "{{ item.1.ddns.key_name }}"
+        key_secret:     "{{ item.1.ddns.key_secret }}"
+        server: "{{ item.1.ddns.server }}"
+        zone:   "{{ item.1.ddns.domain }}"
+        record: "{{ item.1.acme_key + '.' }}"
+        type:   "TXT"
+        ttl:    60
+        value:  "{{ item.0.challenge_data_dns[item.1.acme_key] }}"
+        state:  present
+      when: acme_challenge is changed and item.0.challenge_data_dns[item.1.acme_key] is defined
+      with_nested:
+        - "{{ acme_challenge.results }}"
+        - "{{ cert_sans2 }}"
+      register: dns01_added
+    - name: Explicitly notify pdns slaves
+      command: pdns_control notify "{{ item.ddns.domain }}"
+      delegate_to: "{{ item.ddns.server }}"
+      with_items: "{{ cert_sans2 }}"
+      when: acme_challenge is changed and dns01_added is changed
+    - name: Wait for update to propagate or USER INTERRUPT before acme stage 2
+      wait_for:
+        timeout: 30
+      when: acme_challenge is changed and dns01_added is changed
+  tags:
+    - 'acme_1'
+
+- block:
+    - name: acme stage 2
+      letsencrypt:
+        account_key_content: "{{ item.1.acme_account_key }}"
+        acme_directory: "https://acme-v02.api.letsencrypt.org/directory"
+        acme_version: 2
+        challenge: "dns-01"
+        csr:  "{{ item.1.csr }}"
+        dest: "{{ item.1.cert }}"
+        fullchain_dest: "{{ item.1.fullchain }}"
+        data: "{{ item.0 }}"
+      with_together:
+        - "{{ acme_challenge.results }}"
+        - "{{ letsencrypt_files }}"
+    - name: Remove acme DNS-01 challenge RRs
+      nsupdate:
+        key_algorithm:  "{{ item.ddns.key_algo }}"
+        key_name:       "{{ item.ddns.key_name }}"
+        key_secret:     "{{ item.ddns.key_secret }}"
+        server: "{{ item.ddns.server }}"
+        zone:   "{{ item.ddns.domain }}"
+        record: "{{ item.acme_key + '.' }}"
+        type:   "TXT"
+        state:  absent
+      with_items: "{{ cert_sans2 }}"
+      # FIXME: This following condition is false during re-run. On other hand,
+      # it's required for correct operation, if nothing had changed (after
+      # successful operation).
+      when: acme_challenge is changed
+    - name: Remove saved acme challenge
+      local_action: file path=acme_challenge.txt state=absent
+      when: acme_challenge is changed
+  tags:
+    - 'acme_2'
+

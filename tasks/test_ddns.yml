@@ -1,0 +1,38 @@
+---
+
+# This is a pre-task for role.
+- name: Install required python modules
+  apt:
+    name: python-dnspython
+    state: present
+- name: Add test RR
+  nsupdate:
+    key_algorithm:  "{{ item.ddns.key_algo }}"
+    key_name:       "{{ item.ddns.key_name }}"
+    key_secret:     "{{ item.ddns.key_secret }}"
+    server: "{{ item.ddns.server }}"
+    zone:   "{{ item.ddns.domain }}"
+    #record: "testssl1"
+    #zone:   "{{ 'testssl1.' + cert_domain + '.' }}"
+    record: "{{ 'testssl1.' + item.ddns.domain + '.' }}"
+    type: "TXT"
+    ttl: 60
+    value: ["hui", "huynya"]
+    state: present
+  loop: "{{ cert_sans2 }}"
+- name: Delete test RR
+  nsupdate:
+    key_algorithm:  "{{ item.ddns.key_algo }}"
+    key_name:       "{{ item.ddns.key_name }}"
+    key_secret:     "{{ item.ddns.key_secret }}"
+    server: "{{ item.ddns.server }}"
+    zone:   "{{ item.ddns.domain }}"
+    record: "{{ 'testssl1.' + item.ddns.domain + '.' }}"
+    type: "TXT"
+    state: absent
+  loop: "{{ cert_sans2 }}"
+- name: Explicitly notify pdns slaves about test RRs
+  command: pdns_control notify "{{ item.ddns.domain }}"
+  delegate_to: "{{ item.ddns.server }}"
+  with_items: "{{ cert_sans2 }}"
+

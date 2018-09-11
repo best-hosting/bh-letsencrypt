@@ -1,0 +1,12 @@
+---
+
+# Directory, where to store certificates.
+cert_root_dir:        "/etc/letsencrypt/ansible/"
+
+# Perform ddns test.
+#
+# Note: with this enabled ansible play will _always_ return `changed` status,
+# because test RRs are first added, then deleted and then pdns slaves are
+# explicitly notified. So, enable this _only_ for testing, that ddns updates
+# are working.
+test_ddns:  false
