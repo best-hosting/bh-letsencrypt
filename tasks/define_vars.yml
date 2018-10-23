@@ -8,10 +8,12 @@
         letsencrypt_files: >
           {{ letsencrypt_files | default([]) + [item | combine(
                 { 'dir'       : cert_root_dir + item.name + '/'
-                , 'privkey'   : cert_root_dir + item.name + '/privkey.key'
-                , 'csr'       : cert_root_dir + item.name + '/req.csr'
-                , 'cert'      : cert_root_dir + item.name + '/cert.pem'
-                , 'fullchain' : cert_root_dir + item.name + '/fullchain.pem'
+                , 'files'    :
+                  { 'privkey'   : cert_root_dir + item.name + '/privkey.key'
+                  , 'csr'       : cert_root_dir + item.name + '/req.csr'
+                  , 'cert'      : cert_root_dir + item.name + '/cert.pem'
+                  , 'fullchain' : cert_root_dir + item.name + '/fullchain.pem'
+                  }
                 , 'cn'        : item.sans[0].name
                 , 'sans'      : item.sans | map(attribute='name')
                     | zip_longest([], fillvalue='DNS:') | map('reverse') | map('join') | list
