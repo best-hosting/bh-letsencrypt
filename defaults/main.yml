@@ -10,3 +10,5 @@ cert_root_dir:        "/etc/letsencrypt/ansible/"
 # explicitly notified. So, enable this _only_ for testing, that ddns updates
 # are working.
 test_ddns:  false
+
+local_cert_dir:   "{{ playbook_dir + '/huy/' }}"

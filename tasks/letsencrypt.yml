@@ -140,3 +140,155 @@
   tags:
     - 'acme_2'
 
+- block:
+    - name: Set defaults
+      set_fact:
+        local_certs: []
+        wrong_local_certs: []
+
+        transfer_certs: []
+        new_certs: []
+        orphaned_certs: []
+        matched_certs: []
+        mismatched_certs: []
+
+    - name: Create local cert dir
+      local_action: file path={{ local_cert_dir }} state=directory
+      #    - name: Find all created_by certs
+      #      local_action:
+      #        module: find
+      #        path:     "{{ local_cert_dir }}"
+      #        patterns: 'created_by'
+      #        file_type:  file
+      #        recurse:  yes
+      #      register: local_crts
+      #    - name: Local certs found
+      #      debug:
+      #        var: local_crts
+      #    - name: Dir names
+      #      debug:
+      #        msg: "{{ item.dir | dirname }}"
+      #      loop: "{{ letsencrypt_files }}"
+    - name: Transfer certs
+      set_fact:
+      # FIXME: Normalize dirname properly.
+        transfer_certs: >
+          {{ transfer_certs | default([])
+              + [{ 'name': item.name
+                , 'remote_dir': item.dir
+                , 'local_dir': local_cert_dir + item['dir'].split('/')[-2]
+                , 'created_by': local_cert_dir + item['dir'].split('/')[-2] + '/created_by'
+                }]
+          }}
+      loop: "{{ letsencrypt_files }}"
+    - name: Debug trasnfer certs
+      debug:
+        var: transfer_certs
+
+    - name: Stat local transfer certs dirs
+      local_action:
+        module: stat
+        path: "{{ item.local_dir }}"
+      register: transfer_certs_stats
+      loop: "{{ transfer_certs }}"
+    - name: Debug local transfer certs stats
+      debug:
+        var: transfer_certs_stats
+
+    - name: New certs
+      set_fact:
+        new_certs: "{{ new_certs | default([]) + [item.item] }}"
+      when: not item.stat.exists
+      loop: "{{ transfer_certs_stats.results }}"
+    - name: Debug new certs
+      debug:
+        var: new_certs
+
+    - name: Stat local created_by dirs
+      local_action:
+        module: stat
+        path: "{{ item.created_by }}"
+      register: transfer_certs_created_stats
+      loop: "{{ transfer_certs }}"
+    - name: Debug local transfer certs stats
+      debug:
+        var: transfer_certs_created_stats
+
+    - name: Orphaned certs
+      set_fact:
+        orphaned_certs: "{{ orphaned_certs | default([]) + [item.0.item] }}"
+      when: item.0.stat.exists and not item.1.stat.exists
+      with_together:
+        - "{{ transfer_certs_stats.results }}"
+        - "{{ transfer_certs_created_stats.results }}"
+    - name: Debug orphaned certs
+      debug:
+        var: orphaned_certs
+
+    - name: Matched certs
+      set_fact:
+        matched_certs: "{{ matched_certs | default([]) + [item.item] }}"
+      when: item.stat.exists and ansible_hostname == lookup('file', item.item.created_by)
+      with_items:
+        - "{{ transfer_certs_created_stats.results }}"
+    - name: Debug matched certs
+      debug:
+        var: matched_certs
+
+    - name: Mismatched certs
+      set_fact:
+        mismatched_certs: "{{ mismatched_certs | default([]) + [item.item] }}"
+      when: item.stat.exists and ansible_hostname != lookup('file', item.item.created_by)
+      with_items:
+        - "{{ transfer_certs_created_stats.results }}"
+    - name: Debug matched certs
+      debug:
+        var: mismatched_certs
+
+  tags:
+    - 'debug'
+
+      #- block:
+  #    - name: Local certificates issued by ANOTHER host
+  #      set_fact:
+  #        wrong_local_certs: "{{ wrong_local_certs | default([]) + [{'name': item.name, 'dir': item.dir}] }}"
+  #      when: lookup('file', local_cert_dir + '/' + item.name + '/created_by') != ansible_hostname
+  #      loop: "{{ letsencrypt_files }}"
+  #    - name: Build a list of correct local certs
+  #      set_fact:
+  #        local_certs: "{{ local_certs | default([]) + [{'name': item.name, 'dir': item.dir}] }}"
+  #      when: lookup('file', local_cert_dir + '/' + item.name + '/created_by') == ansible_hostname
+  #      loop: "{{ letsencrypt_files }}"
+  #    - name: local certs
+  #      debug:
+  #        var: local_certs
+  #    - name: WRONG local certs
+  #      debug:
+  #        var: wrong_local_certs
+
+- block:
+  #    - name: debug
+  #      debug:
+  #        var: local_cert_dir
+    - name: Create local cert dir
+      local_action: file path={{ item.local_dir }} state=directory
+      loop: "{{ matched_certs + new_certs }}"
+    - name: Get cert files
+      synchronize:
+        mode: pull
+        recursive: yes
+        # FIXME: Here the equivalence of `item.name` and `item.dir` is
+        # claimed, but this may not be true.
+        src: "{{ item.remote_dir }}"
+        dest: "{{ item.local_dir }}"
+      loop: "{{ matched_certs + new_certs }}"
+      #    - name: Set creation host
+      #      local_action:
+      #        module: copy
+      #        content:  "{{ ansible_hostname }}"
+      #        dest:     "{{ local_cert_dir + '/' + item.name + '/created_by' }}"
+      #      when: item.name != wrong_local_certs
+      #      loop: "{{ letsencrypt_files }}"
+  tags:
+    - 'debug'
+
