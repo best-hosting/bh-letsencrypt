@@ -88,7 +88,8 @@
         ttl:    60
         value:  "{{ item.0.challenge_data_dns[item.1.acme_key] }}"
         state:  present
-      when: acme_challenge is changed and item.0.challenge_data_dns[item.1.acme_key] is defined
+      when: acme_challenge is changed and item.0.challenge_data_dns is defined and item.0.challenge_data_dns[item.1.acme_key] is defined
+        #when: acme_challenge is changed and item.0.challenge_data_dns[item.1.acme_key] is defined
       with_nested:
         - "{{ acme_challenge.results }}"
         - "{{ cert_sans2 }}"
@@ -185,6 +186,7 @@
       debug:
         var: transfer_certs
 
+    # FIXME: `local_action` or `delegate_to` for block?
     - name: Stat local transfer certs dirs
       local_action:
         module: stat
@@ -214,6 +216,9 @@
       debug:
         var: transfer_certs_created_stats
 
+    # FIXME: Check `cert` file instead of directory. Directory is created
+    # before `synchronize` step and empty directories will be considered as
+    # orphaned here.
     - name: Orphaned certs
       set_fact:
         orphaned_certs: "{{ orphaned_certs | default([]) + [item.0.item] }}"
