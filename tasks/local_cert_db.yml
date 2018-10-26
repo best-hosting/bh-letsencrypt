@@ -1,80 +1,69 @@
 
+# Obtain local cert db stats.
 - block:
-    - name: Set defaults
-      set_fact:
-        local_certs: []
-        wrong_local_certs: []
-
-        new_certs: []
-        orphaned_certs: []
-        matched_certs: []
-        mismatched_certs: []
-
-    - name: Create local cert dir
-      local_action: file path={{ local_cert_dir }} state=directory
-
-    # FIXME: `local_action` or `delegate_to` for block?
-    - name: Stat local cert
-      local_action:
-        module: stat
+    - name: Create local cert db directory
+      file:
+        path: "{{ local_cert_dir }}"
+        state: directory
+    - name: Stat certificate files in local cert db
+      stat:
         path: "{{ item.local_files.cert }}"
       register: transfer_certs_cert_stats
       loop: "{{ letsencrypt_files }}"
-    - name: Stat local created_by
-      local_action:
-        module: stat
+    - name: Stat created_by files in local cert db
+      stat:
         path: "{{ item.local_files.created_by }}"
       register: transfer_certs_created_stats
       loop: "{{ letsencrypt_files }}"
-    - name: Debug local transfer cert
-      debug:
-        var: transfer_certs_cert_stats
-    - name: Debug local transfer created stats
-      debug:
-        var: transfer_certs_created_stats
+  delegate_to: localhost
 
-    - name: New certs
+- block:
+    - name: Define new certificates
       set_fact:
         new_certs: "{{ new_certs | default([]) + [item.item] }}"
       when: not item.stat.exists
       loop: "{{ transfer_certs_cert_stats.results }}"
 
-    - name: Orphaned certs
+    - name: Define orphaned certificates
       set_fact:
         orphaned_certs: "{{ orphaned_certs | default([]) + [item.0.item] }}"
       when: item.0.stat.exists and not item.1.stat.exists
-      with_together:
-        - "{{ transfer_certs_cert_stats.results }}"
-        - "{{ transfer_certs_created_stats.results }}"
+      loop: >
+        {{ transfer_certs_cert_stats.results
+            | zip(transfer_certs_created_stats.results)
+            | list
+        }}
 
-    - name: Matched certs
-      set_fact:
-        matched_certs: "{{ matched_certs | default([]) + [item.item] }}"
-      when: item.stat.exists and ansible_hostname == lookup('file', item.item.local_files.created_by)
-      with_items:
-        - "{{ transfer_certs_created_stats.results }}"
-
-    - name: Mismatched certs
+    # E.g. orphaned certificates may be counted here too (because `when` check
+    # is not sufficient), but this does not matter..
+    - name: Define mismatched certificates
       set_fact:
         mismatched_certs: "{{ mismatched_certs | default([]) + [item.item] }}"
       when: item.stat.exists and ansible_hostname != lookup('file', item.item.local_files.created_by)
-      with_items:
-        - "{{ transfer_certs_created_stats.results }}"
+      loop: "{{ transfer_certs_created_stats.results }}"
 
-    - name: Debug new certs
+    - name: Define matched certificates
+      set_fact:
+        matched_certs: "{{ matched_certs | default([]) + [item.item] }}"
+      when: item.stat.exists and ansible_hostname == lookup('file', item.item.local_files.created_by)
+      loop: "{{ transfer_certs_created_stats.results }}"
+
+    - name: Show new certificates
       debug:
         var: new_certs
-    - name: Debug orphaned certs
+    - name: Show orphaned certificates
       debug:
         var: orphaned_certs
-    - name: Debug matched certs
-      debug:
-        var: matched_certs
-    - name: Debug mismatched certs
+    - name: Show mismatched certificates
       debug:
         var: mismatched_certs
+    - name: Show matched certificates
+      debug:
+        var: matched_certs
 
-
+    - name: Show transfer certs
+      debug:
+        var: transfer_certs
   tags:
     - 'debug'
 

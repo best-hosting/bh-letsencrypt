@@ -1,4 +1,17 @@
 ---
 
-#local_certs: []
-#wrong_local_certs: []
+# These variables are used to build a local certificates db.
+
+# New certificates (not present in local db yet).
+new_certs: []
+
+# Certificates without `created_by` file, specifying remote host, where they
+# were issued.
+orphaned_certs: []
+
+# Certificates present in local db, but issued by different host.
+mismatched_certs: []
+
+# Certificates issued by current host and present in local db.
+matched_certs: []
+

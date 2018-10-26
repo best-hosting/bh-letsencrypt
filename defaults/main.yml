@@ -12,3 +12,7 @@ cert_root_dir:        "/etc/letsencrypt/ansible/"
 test_ddns:  false
 
 local_cert_dir:   "{{ playbook_dir + '/huy/' }}"
+# The resulting list, containing certificates, which will be transfered from
+# remote server to local cert db and _overwrite_ local version. See
+# `vars/main.yml` for other possible variables.
+transfer_certs: "{{ matched_certs + new_certs }}"

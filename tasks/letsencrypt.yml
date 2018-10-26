@@ -1,5 +1,6 @@
 ---
 
+# Generate files.
 - block:
     #pre_tasks:
     - name: Install required python modules
@@ -46,6 +47,7 @@
   tags:
     - 'letsencrypt_files'
 
+# Ask for acme-1.
 - block:
     - name: Check saved acme challenge
       local_action: stat path=acme_challenge.txt
@@ -81,6 +83,7 @@
   tags:
     - 'acme_1'
 
+# Add RRs.
 - block:
     - name: Add acme DNS-01 challenge RRs
       nsupdate:
@@ -112,6 +115,7 @@
   tags:
     - 'acme_1'
 
+# Ask for acme-2.
 - block:
     - name: acme stage 2
       acme_certificate:
@@ -147,10 +151,8 @@
   tags:
     - 'acme_2'
 
+# Copy certificates to local db.
 - block:
-  #    - name: debug
-  #      debug:
-  #        var: local_cert_dir
     - name: Create local cert dir
       local_action: file path={{ item.local_dir }} state=directory
       loop: "{{ matched_certs + new_certs }}"
@@ -163,5 +165,7 @@
         src: "{{ item.dir }}"
         dest: "{{ item.local_dir }}"
         delete: yes
-      loop: "{{ matched_certs + new_certs }}"
+      loop: "{{ transfer_certs }}"
+  tags:
+    - 'letsencrypt_local_db'
 

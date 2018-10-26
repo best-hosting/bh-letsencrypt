@@ -39,12 +39,14 @@
   tags:
     - 'letsencrypt'
     - 'letsencrypt_files'
+    - 'letsencrypt_local_db'
     - 'debug'
 
 - name: Check local certs db
   import_tasks: local_cert_db.yml
   tags:
     - 'letsencrypt'
+    - 'letsencrypt_local_db'
     - 'debug'
 
 - name: Test ddns
