@@ -160,12 +160,33 @@
       synchronize:
         mode: pull
         recursive: yes
-        # FIXME: Here the equivalence of `item.name` and `item.dir` is
-        # claimed, but this may not be true.
         src: "{{ item.dir }}"
         dest: "{{ item.local_dir }}"
         delete: yes
       loop: "{{ transfer_certs }}"
   tags:
     - 'letsencrypt_local_db'
+
+- block:
+    - name: Install fullchain
+      copy:
+        src: "{{ item.local_files.fullchain }}"
+        dest: "{{ item.files.fullchain }}"
+        mode: 600
+      loop: "{{ install_cert_files }}"
+    - name: Install cert
+      copy:
+        src: "{{ item.local_files.cert }}"
+        dest: "{{ item.files.cert }}"
+        mode: 600
+      when: item.files.cert is defined
+      loop: "{{ install_cert_files }}"
+    - name: Install key
+      copy:
+        src: "{{ item.local_files.privkey }}"
+        dest: "{{ item.files.privkey }}"
+        mode: 600
+      loop: "{{ install_cert_files }}"
+  tags:
+    - 'letsencrypt_install'
 

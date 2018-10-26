@@ -19,6 +19,8 @@
                 , 'local_dir' : local_cert_dir + item.name + '/'
                 , 'local_files':
                   { 'cert'      : local_cert_dir + item.name + '/cert.pem'
+                  , 'privkey'   : local_cert_dir + item.name + '/privkey.key'
+                  , 'fullchain' : local_cert_dir + item.name + '/fullchain.pem'
                   , 'created_by': local_cert_dir + item.name + '/created_by'
                   }
                 , 'cn'        : item.sans[0].name

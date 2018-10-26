@@ -40,6 +40,7 @@
     - 'letsencrypt'
     - 'letsencrypt_files'
     - 'letsencrypt_local_db'
+    - 'letsencrypt_install'
     - 'debug'
 
 - name: Check local certs db
@@ -47,6 +48,7 @@
   tags:
     - 'letsencrypt'
     - 'letsencrypt_local_db'
+    - 'letsencrypt_install'
     - 'debug'
 
 - name: Test ddns

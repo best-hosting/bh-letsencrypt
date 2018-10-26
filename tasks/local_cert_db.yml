@@ -17,6 +17,7 @@
       loop: "{{ letsencrypt_files }}"
   delegate_to: localhost
 
+# Define local cert db variables.
 - block:
     - name: Define new certificates
       set_fact:
@@ -64,6 +65,25 @@
     - name: Show transfer certs
       debug:
         var: transfer_certs
+
+# FIXME: Remove `default([])` everywhere and define variables in `vars`
+# instead.
+# Define install dictionary.
+- block:
+    - name: Define install cert pathes
+      set_fact:
+        install_cert_files: >
+          {{ install_cert_files | default([]) + [item | combine(
+                { 'local_files':
+                    letsencrypt_files | selectattr('name', 'equalto', item.name)
+                      | map(attribute='local_files') | list | first
+                })]
+          }}
+      loop: "{{ install_certs }}"
+    - name: Show install certificate pathes
+      debug:
+        var: install_cert_files
+
   tags:
     - 'debug'
 
