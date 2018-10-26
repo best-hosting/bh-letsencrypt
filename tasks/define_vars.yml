@@ -5,14 +5,21 @@
         # to two-value list, where second value is word 'DNS:', then reverse
         # and join this internal list elements. So, i'll get valid SAN domain
         # name specification.
+        # FIXME: Rename `dir` to `remote_dir` .
         letsencrypt_files: >
           {{ letsencrypt_files | default([]) + [item | combine(
                 { 'dir'       : cert_root_dir + item.name + '/'
-                , 'files'    :
+                , 'files':
                   { 'privkey'   : cert_root_dir + item.name + '/privkey.key'
                   , 'csr'       : cert_root_dir + item.name + '/req.csr'
                   , 'cert'      : cert_root_dir + item.name + '/cert.pem'
                   , 'fullchain' : cert_root_dir + item.name + '/fullchain.pem'
+                  , 'created_by': cert_root_dir + item.name + '/created_by'
+                  }
+                , 'local_dir' : local_cert_dir + item.name + '/'
+                , 'local_files':
+                  { 'cert'      : local_cert_dir + item.name + '/cert.pem'
+                  , 'created_by': local_cert_dir + item.name + '/created_by'
                   }
                 , 'cn'        : item.sans[0].name
                 , 'sans'      : item.sans | map(attribute='name')

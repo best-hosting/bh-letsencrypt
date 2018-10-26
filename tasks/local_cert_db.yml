@@ -1,0 +1,80 @@
+
+- block:
+    - name: Set defaults
+      set_fact:
+        local_certs: []
+        wrong_local_certs: []
+
+        new_certs: []
+        orphaned_certs: []
+        matched_certs: []
+        mismatched_certs: []
+
+    - name: Create local cert dir
+      local_action: file path={{ local_cert_dir }} state=directory
+
+    # FIXME: `local_action` or `delegate_to` for block?
+    - name: Stat local cert
+      local_action:
+        module: stat
+        path: "{{ item.local_files.cert }}"
+      register: transfer_certs_cert_stats
+      loop: "{{ letsencrypt_files }}"
+    - name: Stat local created_by
+      local_action:
+        module: stat
+        path: "{{ item.local_files.created_by }}"
+      register: transfer_certs_created_stats
+      loop: "{{ letsencrypt_files }}"
+    - name: Debug local transfer cert
+      debug:
+        var: transfer_certs_cert_stats
+    - name: Debug local transfer created stats
+      debug:
+        var: transfer_certs_created_stats
+
+    - name: New certs
+      set_fact:
+        new_certs: "{{ new_certs | default([]) + [item.item] }}"
+      when: not item.stat.exists
+      loop: "{{ transfer_certs_cert_stats.results }}"
+
+    - name: Orphaned certs
+      set_fact:
+        orphaned_certs: "{{ orphaned_certs | default([]) + [item.0.item] }}"
+      when: item.0.stat.exists and not item.1.stat.exists
+      with_together:
+        - "{{ transfer_certs_cert_stats.results }}"
+        - "{{ transfer_certs_created_stats.results }}"
+
+    - name: Matched certs
+      set_fact:
+        matched_certs: "{{ matched_certs | default([]) + [item.item] }}"
+      when: item.stat.exists and ansible_hostname == lookup('file', item.item.local_files.created_by)
+      with_items:
+        - "{{ transfer_certs_created_stats.results }}"
+
+    - name: Mismatched certs
+      set_fact:
+        mismatched_certs: "{{ mismatched_certs | default([]) + [item.item] }}"
+      when: item.stat.exists and ansible_hostname != lookup('file', item.item.local_files.created_by)
+      with_items:
+        - "{{ transfer_certs_created_stats.results }}"
+
+    - name: Debug new certs
+      debug:
+        var: new_certs
+    - name: Debug orphaned certs
+      debug:
+        var: orphaned_certs
+    - name: Debug matched certs
+      debug:
+        var: matched_certs
+    - name: Debug mismatched certs
+      debug:
+        var: mismatched_certs
+
+
+  tags:
+    - 'debug'
+
