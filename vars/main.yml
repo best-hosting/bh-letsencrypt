@@ -15,3 +15,5 @@ mismatched_certs: []
 # Certificates issued by current host and present in local db.
 matched_certs: []
 
+# List of additional files to install (may be) used by other roles too.
+install_files: []

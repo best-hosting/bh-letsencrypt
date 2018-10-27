@@ -167,26 +167,14 @@
   tags:
     - 'letsencrypt_local_db'
 
+# Install any additional files.
 - block:
-    - name: Install fullchain
+    - name: Install additional files
       copy:
-        src: "{{ item.local_files.fullchain }}"
-        dest: "{{ item.files.fullchain }}"
-        mode: 600
-      loop: "{{ install_cert_files }}"
-    - name: Install cert
-      copy:
-        src: "{{ item.local_files.cert }}"
-        dest: "{{ item.files.cert }}"
-        mode: 600
-      when: item.files.cert is defined
-      loop: "{{ install_cert_files }}"
-    - name: Install key
-      copy:
-        src: "{{ item.local_files.privkey }}"
-        dest: "{{ item.files.privkey }}"
-        mode: 600
-      loop: "{{ install_cert_files }}"
+        src:  "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode | default(640) }}"
+      loop: "{{ install_files }}"
   tags:
     - 'letsencrypt_install'
 

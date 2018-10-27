@@ -68,21 +68,50 @@
 
 # FIXME: Remove `default([])` everywhere and define variables in `vars`
 # instead.
-# Define install dictionary.
+
+# Define install dictionary v2
 - block:
-    - name: Define install cert pathes
+    # FIXME: I may use src/dest structure in `letsencrypt_files.local_files`.
+    # Then i don't need to rebuild it here..
+    - name: Define local install cert pathes v2
+      set_fact:
+        # By using incorrect mode for certificate files here i may trigger
+        # `restart` handler for corresponding service in later roles.
+        local_letsencrypt_files: >
+          {{ local_letsencrypt_files | default([]) + [
+            { 'name' : item.name
+            , 'files':
+              { 'fullchain' : { 'src' : item.local_files.fullchain, 'mode': 600 }
+              , 'cert'      : { 'src' : item.local_files.cert, 'mode': 600 }
+              , 'privkey'   : { 'src' : item.local_files.privkey, 'mode': 600 }
+              }
+            }]
+          }}
+      loop: "{{ letsencrypt_files }}"
+    # FIXME: Properly convert generator object to dictionary without `list | first`.
+    - name: Define install certificate pathes
       set_fact:
         install_cert_files: >
-          {{ install_cert_files | default([]) + [item | combine(
-                { 'local_files':
-                    letsencrypt_files | selectattr('name', 'equalto', item.name)
-                      | map(attribute='local_files') | list | first
-                })]
+          {{ install_cert_files | default([]) + [
+              local_letsencrypt_files | selectattr('name', 'equalto', item.letsencrypt_name)
+                    | map(attribute='files') | list | first | combine(item, recursive=True)
+              ]
           }}
       loop: "{{ install_certs }}"
     - name: Show install certificate pathes
       debug:
         var: install_cert_files
+
+    - name: Add certificates pathes to global install files
+      set_fact:
+        install_files: >
+          {{ install_files +
+              [ item.cert, item.fullchain, item.privkey ] | selectattr('dest', 'defined') | list
+          }}
+      loop: "{{ install_cert_files }}"
+    - name: Show global install files
+      debug:
+        var: install_files
 
   tags:
     - 'debug'
