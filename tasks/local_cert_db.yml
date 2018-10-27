@@ -73,7 +73,7 @@
 - block:
     # FIXME: I may use src/dest structure in `letsencrypt_files.local_files`.
     # Then i don't need to rebuild it here..
-    - name: Define local install cert pathes v2
+    - name: Define local install cert pathes
       set_fact:
         # By using incorrect mode for certificate files here i may trigger
         # `restart` handler for corresponding service in later roles.
@@ -94,7 +94,9 @@
         install_cert_files: >
           {{ install_cert_files | default([]) + [
               local_letsencrypt_files | selectattr('name', 'equalto', item.letsencrypt_name)
-                    | map(attribute='files') | list | first | combine(item, recursive=True)
+                    | map(attribute='files') | list | first
+                    | default({'cert': {}, 'fullchain': {}, 'privkey': {}})
+                    | combine(item, recursive=True)
               ]
           }}
       loop: "{{ install_certs }}"
@@ -106,7 +108,10 @@
       set_fact:
         install_files: >
           {{ install_files +
-              [ item.cert, item.fullchain, item.privkey ] | selectattr('dest', 'defined') | list
+              [ item.cert, item.fullchain, item.privkey ]
+                  | selectattr('dest', 'defined')
+                  | selectattr('src', 'defined')
+                  | list
           }}
       loop: "{{ install_cert_files }}"
     - name: Show global install files

@@ -1,5 +1,8 @@
 ---
 
+# Internal letsencrypt structure.
+letsencrypt_files: []
+
 # These variables are used to build a local certificates db.
 
 # New certificates (not present in local db yet).
@@ -17,3 +20,10 @@ matched_certs: []
 
 # List of additional files to install (may be) used by other roles too.
 install_files: []
+
+# All local files in letsencrypt db.
+local_letsencrypt_files: []
+
+# Local certificates to install.
+install_cert_files: []
+

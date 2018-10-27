@@ -27,13 +27,6 @@
 # subsequent runs will use previous acme challenge. But if you want to obtain
 # new challenge, delete this file _manually_.
 
-- name: Check empty list
-  fail:
-    msg: "Let's encrypt certificate definitions list `letsencrypt_certs` is empty."
-  when: letsencrypt_certs is undefined or letsencrypt_certs | length == 0
-  tags:
-    - 'letsencrypt'
-
 - name: Define variables
   import_tasks: define_vars.yml
   tags:
