@@ -69,55 +69,50 @@
 # FIXME: Remove `default([])` everywhere and define variables in `vars`
 # instead.
 
-# Define install dictionary v2
+# Add letsencrypt certificates to `install_files` .
 - block:
-    # FIXME: I may use src/dest structure in `letsencrypt_files.local_files`.
-    # Then i don't need to rebuild it here..
-    - name: Define local install cert pathes
+    - name: Define local source cert pathes
       set_fact:
         # By using incorrect mode for certificate files here i may trigger
         # `restart` handler for corresponding service in later roles.
-        local_letsencrypt_files: >
-          {{ local_letsencrypt_files | default([]) + [
-            { 'name' : item.name
-            , 'files':
-              { 'fullchain' : { 'src' : item.local_files.fullchain, 'mode': 600 }
-              , 'cert'      : { 'src' : item.local_files.cert, 'mode': 600 }
-              , 'privkey'   : { 'src' : item.local_files.privkey, 'mode': 600 }
-              }
-            }]
+        install_letsencrypt_certs: >
+          {{ install_letsencrypt_certs | default([]) +
+            [ { 'src' : local_cert_dir + item.letsencrypt_name + '/fullchain.pem'
+              , 'mode': 600
+              , 'letsencrypt_name' : item.letsencrypt_name
+              } | combine(item.fullchain | default({}), recursive=True)
+            , { 'src' : local_cert_dir + item.letsencrypt_name + '/cert.pem'
+              , 'mode': 600
+              , 'letsencrypt_name' : item.letsencrypt_name
+              } | combine(item.cert | default({}), recursive=True)
+            , { 'src' : local_cert_dir + item.letsencrypt_name + '/privkey.key'
+              , 'mode': 600
+              , 'letsencrypt_name' : item.letsencrypt_name
+              } | combine(item.privkey, recursive=True)
+            ] | selectattr('dest', 'defined') | list
           }}
-      loop: "{{ letsencrypt_files }}"
-    # FIXME: Properly convert generator object to dictionary without `list | first`.
-    - name: Define install certificate pathes
-      set_fact:
-        install_cert_files: >
-          {{ install_cert_files | default([]) + [
-              local_letsencrypt_files | selectattr('name', 'equalto', item.letsencrypt_name)
-                    | map(attribute='files') | list | first
-                    | default({'cert': {}, 'fullchain': {}, 'privkey': {}})
-                    | combine(item, recursive=True)
-              ]
-          }}
+      when: item.letsencrypt_name is defined
       loop: "{{ install_certs }}"
-    - name: Show install certificate pathes
+    - name: debug
       debug:
-        var: install_cert_files
-
-    - name: Add certificates pathes to global install files
+        var: install_letsencrypt_certs
+    - name: Stat source files
+      local_action:
+        module: stat
+        path: "{{ item.src }}"
+      register: install_letsencrypt_certs_stats
+      loop: "{{ install_letsencrypt_certs }}"
+    - name: debug
+      debug:
+        var: install_letsencrypt_certs_stats
+    - name: Add letsencrypt certs to install files
       set_fact:
-        install_files: >
-          {{ install_files +
-              [ item.cert, item.fullchain, item.privkey ]
-                  | selectattr('dest', 'defined')
-                  | selectattr('src', 'defined')
-                  | list
-          }}
-      loop: "{{ install_cert_files }}"
-    - name: Show global install files
+        install_files: "{{ install_files | default([]) + [item.item] }}"
+      when: item.stat.exists
+      loop: "{{ install_letsencrypt_certs_stats.results }}"
+    - name: Debug install_files
       debug:
         var: install_files
-
   tags:
     - 'debug'
 

@@ -42,7 +42,6 @@
     - 'letsencrypt'
     - 'letsencrypt_local_db'
     - 'letsencrypt_install'
-    - 'debug'
 
 - name: Test ddns
   import_tasks: test_ddns.yml
