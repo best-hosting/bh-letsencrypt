@@ -167,14 +167,3 @@
   tags:
     - 'letsencrypt_local_db'
 
-# Install any additional files.
-- block:
-    - name: (generic) Install additional files
-      copy:
-        src:  "{{ item.src }}"
-        dest: "{{ item.dest }}"
-        mode: "{{ item.mode | default(640) }}"
-      loop: "{{ install_files }}"
-  tags:
-    - 'letsencrypt_install'
-

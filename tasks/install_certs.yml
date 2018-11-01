@@ -54,6 +54,13 @@
       wait_for:
         timeout: 10
       when: missed_install_files | length > 0
-  tags:
-    - 'debug'
+
+# Install any additional files.
+- block:
+    - name: (generic) Install additional files
+      copy:
+        src:  "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode | default(640) }}"
+      loop: "{{ install_files }}"
 

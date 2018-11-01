@@ -40,12 +40,6 @@
     - 'letsencrypt'
     - 'letsencrypt_local_db'
 
-- name: Install letsencrypt certificates from local db
-  import_tasks: install_certs.yml
-  tags:
-    - 'letsencrypt'
-    - 'letsencrypt_install'
-
 - name: Test ddns
   include_tasks: test_ddns.yml
   when: test_ddns
@@ -56,4 +50,10 @@
   import_tasks: letsencrypt.yml
   tags:
     - 'letsencrypt'
+
+- name: Install letsencrypt certificates from local db
+  import_tasks: install_certs.yml
+  tags:
+    - 'letsencrypt'
+    - 'letsencrypt_install'
 
