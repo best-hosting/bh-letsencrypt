@@ -33,14 +33,17 @@
     - 'letsencrypt'
     - 'letsencrypt_files'
     - 'letsencrypt_local_db'
-    - 'letsencrypt_install'
-    - 'debug'
 
 - name: Check local certs db
   import_tasks: local_cert_db.yml
   tags:
     - 'letsencrypt'
     - 'letsencrypt_local_db'
+
+- name: Install letsencrypt certificates from local db
+  import_tasks: install_certs.yml
+  tags:
+    - 'letsencrypt'
     - 'letsencrypt_install'
 
 - name: Test ddns
