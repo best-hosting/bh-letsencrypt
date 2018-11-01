@@ -21,13 +21,13 @@
 - block:
     - name: Define new certificates
       set_fact:
-        new_certs: "{{ new_certs | default([]) + [item.item] }}"
+        new_certs: "{{ new_certs + [item.item] }}"
       when: not item.stat.exists
       loop: "{{ transfer_certs_cert_stats.results }}"
 
     - name: Define orphaned certificates
       set_fact:
-        orphaned_certs: "{{ orphaned_certs | default([]) + [item.0.item] }}"
+        orphaned_certs: "{{ orphaned_certs + [item.0.item] }}"
       when: item.0.stat.exists and not item.1.stat.exists
       loop: >
         {{ transfer_certs_cert_stats.results
@@ -39,13 +39,13 @@
     # is not sufficient), but this does not matter..
     - name: Define mismatched certificates
       set_fact:
-        mismatched_certs: "{{ mismatched_certs | default([]) + [item.item] }}"
+        mismatched_certs: "{{ mismatched_certs + [item.item] }}"
       when: item.stat.exists and ansible_hostname != lookup('file', item.item.local_files.created_by)
       loop: "{{ transfer_certs_created_stats.results }}"
 
     - name: Define matched certificates
       set_fact:
-        matched_certs: "{{ matched_certs | default([]) + [item.item] }}"
+        matched_certs: "{{ matched_certs + [item.item] }}"
       when: item.stat.exists and ansible_hostname == lookup('file', item.item.local_files.created_by)
       loop: "{{ transfer_certs_created_stats.results }}"
 
@@ -65,7 +65,4 @@
     - name: Show transfer certs
       debug:
         var: transfer_certs
-
-# FIXME: Remove `default([])` everywhere and define variables in `vars`
-# instead.
 

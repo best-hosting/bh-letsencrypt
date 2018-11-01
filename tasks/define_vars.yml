@@ -7,7 +7,7 @@
         # name specification.
         # FIXME: Rename `dir` to `remote_dir` .
         letsencrypt_files: >
-          {{ letsencrypt_files | default([]) + [item | combine(
+          {{ letsencrypt_files + [item | combine(
                 { 'dir'       : cert_root_dir + item.name + '/'
                 , 'files':
                   { 'privkey'   : cert_root_dir + item.name + cert_privkey_fn
@@ -36,7 +36,7 @@
     - name: Build `acme_key` value for wildcard names.
       set_fact:
         cert_sans2: >
-          {{ cert_sans2 | default([]) + [ item.1 | combine(
+          {{ cert_sans2 + [ item.1 | combine(
               { 'acme_key' : '_acme-challenge.' + item.1['name'].split('.')[1:] | join ('.')
               }) ]
           }}
@@ -47,7 +47,7 @@
     - name: Build `acme_key` value for regular DNS names.
       set_fact:
         cert_sans2: >
-          {{ cert_sans2 | default([]) + [ item.1 | combine(
+          {{ cert_sans2 + [ item.1 | combine(
               { 'acme_key' : '_acme-challenge.' + item.1['name'].split('.')[0:] | join ('.')
               }) ]
           }}

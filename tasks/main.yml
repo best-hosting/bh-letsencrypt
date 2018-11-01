@@ -47,7 +47,7 @@
     - 'letsencrypt_install'
 
 - name: Test ddns
-  import_tasks: test_ddns.yml
+  include_tasks: test_ddns.yml
   when: test_ddns
   tags:
     - 'letsencrypt'

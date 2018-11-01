@@ -7,7 +7,7 @@
         # By using incorrect mode for certificate files here i may trigger
         # `restart` handler for corresponding service in later roles.
         install_letsencrypt_certs: >
-          {{ install_letsencrypt_certs | default([]) +
+          {{ install_letsencrypt_certs +
             [ { 'src' : local_cert_dir + item.letsencrypt_name + cert_fullchain_fn
               , 'mode': 600
               , 'letsencrypt_name' : item.letsencrypt_name
@@ -19,7 +19,7 @@
             , { 'src' : local_cert_dir + item.letsencrypt_name + cert_privkey_fn
               , 'mode': 600
               , 'letsencrypt_name' : item.letsencrypt_name
-              } | combine(item.privkey, recursive=True)
+              } | combine(item.privkey | default({}), recursive=True)
             ] | selectattr('dest', 'defined') | list
           }}
       when: item.letsencrypt_name is defined
@@ -34,7 +34,7 @@
 
     - name: Add letsencrypt certs to install files
       set_fact:
-        install_files: "{{ install_files | default([]) + [item.item] }}"
+        install_files: "{{ install_files + [item.item] }}"
       when: item.stat.exists
       loop: "{{ install_letsencrypt_certs_stats.results }}"
     - name: Gather missed letsencrypt certs

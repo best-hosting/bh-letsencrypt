@@ -3,7 +3,19 @@
 # Internal letsencrypt structure.
 letsencrypt_files: []
 
-# These variables are used to build a local certificates db.
+# Internal structure containing DNS names checked by letsencrypt.
+cert_sans2: []
+
+# Variables for default file names. I use these names in several places, so i
+# need these variables.
+cert_privkey_fn:    '/privkey.key'
+cert_csr_fn:        '/req.csr'
+cert_cert_fn:       '/cert.pem'
+cert_fullchain_fn:  '/fullchain.pem'
+cert_created_by_fn: '/created_by'
+
+
+## These variables are used to build a local certificates db.
 
 # New certificates (not present in local db yet).
 new_certs: []
@@ -18,23 +30,15 @@ mismatched_certs: []
 # Certificates issued by current host and present in local db.
 matched_certs: []
 
+
+## These variables are used during installation of certificates from local db.
+
 # List of additional files to install (may be) used by other roles too.
 install_files: []
-
-# All local files in letsencrypt db.
-local_letsencrypt_files: []
-
-# Local certificates to install.
-install_cert_files: []
 
 # Install files with missed source file.
 missed_install_files: []
 
-# Variables for default file names. I use these names in several places, so i
-# need these variables.
-cert_privkey_fn:    '/privkey.key'
-cert_csr_fn:        '/req.csr'
-cert_cert_fn:       '/cert.pem'
-cert_fullchain_fn:  '/fullchain.pem'
-cert_created_by_fn: '/created_by'
+# Local certificates to install.
+install_letsencrypt_certs: []
 
