@@ -27,6 +27,9 @@ local_letsencrypt_files: []
 # Local certificates to install.
 install_cert_files: []
 
+# Install files with missed source file.
+missed_install_files: []
+
 # Variables for default file names. I use these names in several places, so i
 # need these variables.
 cert_privkey_fn:    '/privkey.key'

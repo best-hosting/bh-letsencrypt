@@ -2,7 +2,7 @@
 
 # Add letsencrypt certificates to `install_files` .
 - block:
-    - name: Define local source cert pathes
+    - name: Define local cert source pathes
       set_fact:
         # By using incorrect mode for certificate files here i may trigger
         # `restart` handler for corresponding service in later roles.
@@ -24,26 +24,36 @@
           }}
       when: item.letsencrypt_name is defined
       loop: "{{ install_certs }}"
-    - name: debug
-      debug:
-        var: install_letsencrypt_certs
-    - name: Stat source files
+
+    - name: Stat local cert source files
       local_action:
         module: stat
         path: "{{ item.src }}"
       register: install_letsencrypt_certs_stats
       loop: "{{ install_letsencrypt_certs }}"
-    - name: debug
-      debug:
-        var: install_letsencrypt_certs_stats
+
     - name: Add letsencrypt certs to install files
       set_fact:
         install_files: "{{ install_files | default([]) + [item.item] }}"
       when: item.stat.exists
       loop: "{{ install_letsencrypt_certs_stats.results }}"
-    - name: Debug install_files
+    - name: Gather missed letsencrypt certs
+      set_fact:
+        missed_install_files: "{{ missed_install_files + [item.item] }}"
+      when: not item.stat.exists
+      loop: "{{ install_letsencrypt_certs_stats.results }}"
+
+    - name: Show install_files
       debug:
         var: install_files
+    - name: Show MISSED install files
+      debug:
+        var: missed_install_files
+
+    - name: MISSED install files found, wait a moment (10s)
+      wait_for:
+        timeout: 10
+      when: missed_install_files | length > 0
   tags:
     - 'debug'
 
