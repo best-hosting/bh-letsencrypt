@@ -101,12 +101,12 @@
         #when: acme_challenge is changed and item.0.challenge_data_dns[item.1.acme_key] is defined
       with_nested:
         - "{{ acme_challenge.results }}"
-        - "{{ cert_sans2 }}"
+        - "{{ letsencrypt_sans }}"
       register: dns01_added
     - name: Explicitly notify pdns slaves
       command: pdns_control notify "{{ item.ddns.domain }}"
       delegate_to: "{{ item.ddns.server }}"
-      with_items: "{{ cert_sans2 }}"
+      with_items: "{{ letsencrypt_sans }}"
       when: acme_challenge is changed and dns01_added is changed
     - name: Wait for update to propagate or USER INTERRUPT before acme stage 2
       wait_for:
@@ -140,7 +140,7 @@
         record: "{{ item.acme_key + '.' }}"
         type:   "TXT"
         state:  absent
-      with_items: "{{ cert_sans2 }}"
+      with_items: "{{ letsencrypt_sans }}"
       # FIXME: This following condition is false during re-run. On other hand,
       # it's required for correct operation, if nothing had changed (after
       # successful operation).

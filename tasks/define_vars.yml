@@ -35,8 +35,8 @@
 
     - name: Build `acme_key` value for wildcard names.
       set_fact:
-        cert_sans2: >
-          {{ cert_sans2 + [ item.1 | combine(
+        letsencrypt_sans: >
+          {{ letsencrypt_sans + [ item.1 | combine(
               { 'acme_key' : '_acme-challenge.' + item.1['name'].split('.')[1:] | join ('.')
               }) ]
           }}
@@ -46,8 +46,8 @@
         - sans
     - name: Build `acme_key` value for regular DNS names.
       set_fact:
-        cert_sans2: >
-          {{ cert_sans2 + [ item.1 | combine(
+        letsencrypt_sans: >
+          {{ letsencrypt_sans + [ item.1 | combine(
               { 'acme_key' : '_acme-challenge.' + item.1['name'].split('.')[0:] | join ('.')
               }) ]
           }}
@@ -57,7 +57,7 @@
         - sans
     - name: Cert sans with `acme_key`
       debug:
-        var: cert_sans2
+        var: letsencrypt_sans
   tags:
     - 'debug'
 

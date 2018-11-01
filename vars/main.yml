@@ -4,7 +4,7 @@
 letsencrypt_files: []
 
 # Internal structure containing DNS names checked by letsencrypt.
-cert_sans2: []
+letsencrypt_sans: []
 
 # Variables for default file names. I use these names in several places, so i
 # need these variables.
