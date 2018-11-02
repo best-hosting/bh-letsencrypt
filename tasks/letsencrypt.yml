@@ -153,7 +153,7 @@
 
 # Copy certificates to local db.
 - block:
-    - name: Create local cert dir
+    - name: Create certificate dir in local db
       local_action: file path={{ item.local_dir }} state=directory
       loop: "{{ matched_certs + new_certs }}"
     - name: Get cert files

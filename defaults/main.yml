@@ -17,7 +17,7 @@ letsencrypt_certs: []
 # Certificates to install from local cert db.
 install_certs: []
 
-local_cert_dir:   "{{ playbook_dir + '/huy/' }}"
+local_cert_dir:   "{{ playbook_dir + '/letsencrypt_certs/' }}"
 # The resulting list, containing certificates, which will be transfered from
 # remote server to local cert db and _overwrite_ local version. See
 # `vars/main.yml` for other possible variables.
