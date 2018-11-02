@@ -33,12 +33,27 @@ matched_certs: []
 
 ## These variables are used during installation of certificates from local db.
 
-# List of additional files to install (may be) used by other roles too.
-install_files: []
+# Local letsencrypt certificates to install.
+letsencrypt_install: []
+
+# New certificate files to install. I may set mode for these files in
+# `install_certs` (and i'll use some default, if none).
+new_installed_certs: []
+
+# Existing (on remote) certificate files to update. I will _not_ allow to set
+# mode for these files. Mode should be already set and should be updated by
+# corresponding service tasks.
+update_installed_certs: []
 
 # Install files with missed source file.
-missed_install_files: []
+missed_installed_certs: []
 
-# Local certificates to install.
-install_letsencrypt_certs: []
+# Result of certificate update task. Check `certs_updated.results.X.changed`
+# variable to know whether something was updated or not.
+# certs_updated: {}
+
+# Result of certificate install task. Check
+# `certs_installed.results.X.changed` variable to know whether something was
+# installed or not.
+# certs_installed: {}
 

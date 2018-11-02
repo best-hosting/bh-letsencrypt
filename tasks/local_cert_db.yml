@@ -49,6 +49,17 @@
       when: item.stat.exists and ansible_hostname == lookup('file', item.item.local_files.created_by)
       loop: "{{ transfer_certs_created_stats.results }}"
 
+    - name: Show new certificates
+      debug:
+        var: new_certs
+    - name: Show matched certificates
+      debug:
+        var: matched_certs
+
+    - name: Show transfer certs
+      debug:
+        var: transfer_certs
+
     - name: Show orphaned certificates
       debug:
         var: orphaned_certs
@@ -60,15 +71,4 @@
       wait_for:
         timeout: 10
       when: mismatched_certs | length > 0 or orphaned_certs | length > 0
-
-    - name: Show new certificates
-      debug:
-        var: new_certs
-    - name: Show matched certificates
-      debug:
-        var: matched_certs
-
-    - name: Show transfer certs
-      debug:
-        var: transfer_certs
 
