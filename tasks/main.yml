@@ -40,14 +40,13 @@
     - 'letsencrypt'
     - 'letsencrypt_local_db'
 
-- name: Test ddns
-  include_tasks: test_ddns.yml
-  when: test_ddns
-  tags:
-    - 'letsencrypt'
-
-- name: Obtain letsencrypt certificate.
-  import_tasks: letsencrypt.yml
+- block:
+    - name: Test ddns
+      include_tasks: test_ddns.yml
+      when: test_ddns
+    - name: Obtain letsencrypt certificate.
+      import_tasks: letsencrypt.yml
+  when: letsencrypt_files | length > 0
   tags:
     - 'letsencrypt'
 
@@ -56,4 +55,5 @@
   tags:
     - 'letsencrypt'
     - 'letsencrypt_install'
+    - 'ssl'
 
