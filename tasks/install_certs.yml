@@ -9,11 +9,11 @@
         letsencrypt_install: >
           {{ letsencrypt_install +
             [ { 'src' : local_cert_dir + item.letsencrypt_name + cert_fullchain_fn
-              , 'mode': 600
+              , 'mode': 644
               , 'letsencrypt_name' : item.letsencrypt_name
               } | combine(item.fullchain | default({}), recursive=True)
             , { 'src' : local_cert_dir + item.letsencrypt_name + cert_cert_fn
-              , 'mode': 600
+              , 'mode': 644
               , 'letsencrypt_name' : item.letsencrypt_name
               } | combine(item.cert | default({}), recursive=True)
             , { 'src' : local_cert_dir + item.letsencrypt_name + cert_privkey_fn
@@ -86,7 +86,7 @@
       copy:
         src:  "{{ item.src }}"
         dest: "{{ item.dest }}"
-        mode: "{{ item.mode | default(640) }}"
+        mode: "{{ item.mode }}"
         force: no
       loop: "{{ new_installed_certs }}"
       register: certs_installed
