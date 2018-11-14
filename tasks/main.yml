@@ -33,6 +33,7 @@
     - 'letsencrypt'
     - 'letsencrypt_files'
     - 'letsencrypt_local_db'
+    - 'test'
 
 - name: Check local certs db
   import_tasks: local_cert_db.yml
@@ -44,6 +45,9 @@
     - name: Test ddns
       include_tasks: test_ddns.yml
       when: test_ddns
+      tags:
+        - 'test'
+
     - name: Obtain letsencrypt certificate.
       import_tasks: letsencrypt.yml
   when: letsencrypt_files | length > 0
