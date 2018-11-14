@@ -62,6 +62,7 @@
         # Delete old certificate before reissue!
         dest: "{{ item.files.cert }}"
         fullchain_dest: "{{ item.files.fullchain }}"
+        remaining_days: 20
       when: not acme_challenge_saved.stat.exists
       register: acme_challenge
       loop: "{{ letsencrypt_files }}"
