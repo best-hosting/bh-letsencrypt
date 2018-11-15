@@ -34,6 +34,8 @@
     - 'letsencrypt_files'
     - 'letsencrypt_local_db'
     - 'test'
+    - 'acme_1'
+    - 'acme_2'
 
 - name: Check local certs db
   import_tasks: local_cert_db.yml
