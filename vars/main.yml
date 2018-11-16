@@ -12,6 +12,7 @@ cert_privkey_fn:    '/privkey.key'
 cert_csr_fn:        '/req.csr'
 cert_cert_fn:       '/cert.pem'
 cert_fullchain_fn:  '/fullchain.pem'
+cert_chain_fn:      '/chain.pem'
 cert_created_by_fn: '/created_by'
 
 

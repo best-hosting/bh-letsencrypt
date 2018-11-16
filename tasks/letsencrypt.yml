@@ -62,6 +62,7 @@
         # FIXME: Delete old certificate before reissue!
         dest: "{{ item.files.cert }}"
         fullchain_dest: "{{ item.files.fullchain }}"
+        chain_dest: "{{ item.files.chain }}"
         remaining_days: 20
       when: not acme_challenge_saved.stat.exists
       register: acme_challenge
@@ -98,6 +99,14 @@
       file:
         state: absent
         path:  "{{ item.item.files.fullchain }}"
+      loop: >
+        {{ acme_challenge.results
+            | selectattr('challenge_data_dns', 'defined') | list
+        }}
+    - name: Delete certificate chain files, which i'm renewing now
+      file:
+        state: absent
+        path:  "{{ item.item.files.chain }}"
       loop: >
         {{ acme_challenge.results
             | selectattr('challenge_data_dns', 'defined') | list
@@ -151,6 +160,7 @@
         csr:  "{{ item.1.files.csr }}"
         dest: "{{ item.1.files.cert }}"
         fullchain_dest: "{{ item.1.files.fullchain }}"
+        chain_dest: "{{ item.1.files.chain }}"
         data: "{{ item.0 }}"
       with_together:
         - "{{ acme_challenge.results }}"

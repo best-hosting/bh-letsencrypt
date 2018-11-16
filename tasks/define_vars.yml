@@ -14,6 +14,7 @@
                   , 'csr'       : cert_root_dir + item.name + cert_csr_fn
                   , 'cert'      : cert_root_dir + item.name + cert_cert_fn
                   , 'fullchain' : cert_root_dir + item.name + cert_fullchain_fn
+                  , 'chain'     : cert_root_dir + item.name + cert_chain_fn
                   , 'created_by': cert_root_dir + item.name + cert_created_by_fn
                   }
                 , 'local_dir' : local_cert_dir + item.name + '/'
@@ -21,6 +22,7 @@
                   { 'privkey'   : local_cert_dir + item.name + cert_privkey_fn
                   , 'cert'      : local_cert_dir + item.name + cert_cert_fn
                   , 'fullchain' : local_cert_dir + item.name + cert_fullchain_fn
+                  , 'chain'     : local_cert_dir + item.name + cert_chain_fn
                   , 'created_by': local_cert_dir + item.name + cert_created_by_fn
                   }
                 , 'cn'        : item.sans[0].name
