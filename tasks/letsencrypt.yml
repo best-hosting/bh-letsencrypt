@@ -90,26 +90,12 @@
     - name: Delete certificate files, which i'm renewing now
       file:
         state: absent
-        path:  "{{ item.item.files.cert }}"
+        path:  "{{ item.0.item.files[item.1] }}"
       loop: >
         {{ acme_challenge.results
-            | selectattr('challenge_data_dns', 'defined') | list
-        }}
-    - name: Delete certificate fullchain files, which i'm renewing now
-      file:
-        state: absent
-        path:  "{{ item.item.files.fullchain }}"
-      loop: >
-        {{ acme_challenge.results
-            | selectattr('challenge_data_dns', 'defined') | list
-        }}
-    - name: Delete certificate chain files, which i'm renewing now
-      file:
-        state: absent
-        path:  "{{ item.item.files.chain }}"
-      loop: >
-        {{ acme_challenge.results
-            | selectattr('challenge_data_dns', 'defined') | list
+            | selectattr('challenge_data_dns', 'defined')
+            | product(['cert', 'fullchain', 'chain'])
+            | list
         }}
 
     - name: Add acme DNS-01 challenge RRs
