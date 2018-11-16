@@ -12,6 +12,10 @@
               , 'mode': 644
               , 'letsencrypt_name' : item.letsencrypt_name
               } | combine(item.fullchain | default({}), recursive=True)
+            , { 'src' : local_cert_dir + item.letsencrypt_name + cert_chain_fn
+              , 'mode': 644
+              , 'letsencrypt_name' : item.letsencrypt_name
+              } | combine(item.chain | default({}), recursive=True)
             , { 'src' : local_cert_dir + item.letsencrypt_name + cert_cert_fn
               , 'mode': 644
               , 'letsencrypt_name' : item.letsencrypt_name

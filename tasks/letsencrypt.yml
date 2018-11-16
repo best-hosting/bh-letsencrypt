@@ -59,9 +59,10 @@
         acme_version: 2
         challenge: "dns-01"
         csr:  "{{ item.files.csr }}"
-        # Delete old certificate before reissue!
+        # FIXME: Delete old certificate before reissue!
         dest: "{{ item.files.cert }}"
         fullchain_dest: "{{ item.files.fullchain }}"
+        chain_dest: "{{ item.files.chain }}"
         remaining_days: 20
       when: not acme_challenge_saved.stat.exists
       register: acme_challenge
@@ -86,6 +87,17 @@
 
 # Add RRs.
 - block:
+    - name: Delete certificate files, which i'm renewing now
+      file:
+        state: absent
+        path:  "{{ item.0.item.files[item.1] }}"
+      loop: >
+        {{ acme_challenge.results
+            | selectattr('challenge_data_dns', 'defined')
+            | product(['cert', 'fullchain', 'chain'])
+            | list
+        }}
+
     - name: Add acme DNS-01 challenge RRs
       nsupdate:
         key_algorithm:  "{{ item.1.ddns.key_algo }}"
@@ -98,21 +110,28 @@
         ttl:    60
         value:  "{{ item.0.challenge_data_dns[item.1.acme_key] }}"
         state:  present
-      when: acme_challenge is changed and item.0.challenge_data_dns is defined and item.0.challenge_data_dns[item.1.acme_key] is defined
-        #when: acme_challenge is changed and item.0.challenge_data_dns[item.1.acme_key] is defined
-      with_nested:
-        - "{{ acme_challenge.results }}"
-        - "{{ letsencrypt_sans }}"
+      when: item.0.challenge_data_dns[item.1.acme_key] is defined
+      # FIXME: If i include ddns information in `letsencrypt_files` i don't
+      # need nested loop here, because it'll be available in `item` of
+      # `acme_challenge.results`. Also this allows to avoid notification to
+      # pdns slaves, which does not have any changes made.
+      loop: >
+        {{ acme_challenge.results
+            | selectattr('challenge_data_dns', 'defined')
+            | product(letsencrypt_sans)
+            | list
+        }}
       register: dns01_added
     - name: Explicitly notify pdns slaves
       command: pdns_control notify "{{ item.ddns.domain }}"
       delegate_to: "{{ item.ddns.server }}"
       with_items: "{{ letsencrypt_sans }}"
-      when: acme_challenge is changed and dns01_added is changed
+      when: dns01_added is changed
     - name: Wait for update to propagate or USER INTERRUPT before acme stage 2
       wait_for:
         timeout: 30
-      when: acme_challenge is changed and dns01_added is changed
+      when: dns01_added is changed
+  when: acme_challenge is changed
   tags:
     - 'acme_1'
 
@@ -127,6 +146,7 @@
         csr:  "{{ item.1.files.csr }}"
         dest: "{{ item.1.files.cert }}"
         fullchain_dest: "{{ item.1.files.fullchain }}"
+        chain_dest: "{{ item.1.files.chain }}"
         data: "{{ item.0 }}"
       with_together:
         - "{{ acme_challenge.results }}"
