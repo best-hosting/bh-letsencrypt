@@ -59,7 +59,6 @@
         acme_version: 2
         challenge: "dns-01"
         csr:  "{{ item.files.csr }}"
-        # FIXME: Delete old certificate before reissue!
         dest: "{{ item.files.cert }}"
         fullchain_dest: "{{ item.files.fullchain }}"
         chain_dest: "{{ item.files.chain }}"
@@ -94,7 +93,7 @@
       loop: >
         {{ acme_challenge.results
             | selectattr('challenge_data_dns', 'defined')
-            | product(['cert', 'fullchain', 'chain'])
+            | product(['cert', 'fullchain', 'chain', 'pfx'])
             | list
         }}
 
@@ -169,6 +168,18 @@
     - name: Remove saved acme challenge
       local_action: file path=acme_challenge.txt state=absent
       when: acme_challenge is changed
+    - name: Create pfx
+      # FIXME: Use `openssl_pkcs12` module. Requires ansible 2.7.
+      command: >
+        openssl pkcs12 -export -password 'pass:'
+          -inkey "{{ item.files.privkey }}"
+          -certfile "{{ item.files.chain }}"
+          -in "{{ item.files.cert }}"
+          -name 'huy'
+          -out "{{ item.files.pfx }}"
+      args:
+        creates: "{{ item.files.pfx }}"
+      loop: "{{ letsencrypt_files }}"
   tags:
     - 'acme_2'
 

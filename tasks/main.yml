@@ -26,6 +26,9 @@
 # During play run acme challange in saved in `acme_challenge.txt`, so
 # subsequent runs will use previous acme challenge. But if you want to obtain
 # new challenge, delete this file _manually_.
+#
+# I may force reissuing of certificate (earlier, than its expiration) by
+# deleting certificate file.
 
 - name: Define variables
   import_tasks: define_vars.yml
