@@ -1,0 +1,109 @@
+---
+
+# Add letsencrypt certificates to `install_files` .
+- block:
+    - name: Define local cert source pathes
+      set_fact:
+        # By using incorrect mode for certificate files here i may trigger
+        # `restart` handler for corresponding service in later roles.
+        letsencrypt_install: >
+          {{ letsencrypt_install +
+            [ { 'src' : local_cert_dir + item.letsencrypt_name + cert_fullchain_fn
+              , 'mode': 644
+              , 'letsencrypt_name' : item.letsencrypt_name
+              } | combine(item.fullchain | default({}), recursive=True)
+            , { 'src' : local_cert_dir + item.letsencrypt_name + cert_chain_fn
+              , 'mode': 644
+              , 'letsencrypt_name' : item.letsencrypt_name
+              } | combine(item.chain | default({}), recursive=True)
+            , { 'src' : local_cert_dir + item.letsencrypt_name + cert_cert_fn
+              , 'mode': 644
+              , 'letsencrypt_name' : item.letsencrypt_name
+              } | combine(item.cert | default({}), recursive=True)
+            , { 'src' : local_cert_dir + item.letsencrypt_name + cert_privkey_fn
+              , 'mode': 600
+              , 'letsencrypt_name' : item.letsencrypt_name
+              } | combine(item.privkey | default({}), recursive=True)
+            ] | selectattr('dest', 'defined') | list
+          }}
+      when: item.letsencrypt_name is defined
+      loop: "{{ install_certs }}"
+
+    - name: Stat local cert source files
+      local_action:
+        module: stat
+        path: "{{ item.src }}"
+      register: letsencrypt_install_src_stats
+      loop: "{{ letsencrypt_install }}"
+    - name: Stat remote cert dest files
+      stat:
+        path: "{{ item.dest }}"
+      register: letsencrypt_install_dest_stats
+      loop: "{{ letsencrypt_install }}"
+
+    - name: Define new letsencrypt certificates to install
+      set_fact:
+        new_installed_certs: "{{ new_installed_certs + [item.0.item] }}"
+      when: item.0.stat.exists and not item.1.stat.exists
+      loop: >
+        {{ letsencrypt_install_src_stats.results
+            | zip(letsencrypt_install_dest_stats.results)
+            | list
+        }}
+    - name: Define existing letsencrypt certificates to update
+      set_fact:
+        update_installed_certs: "{{ update_installed_certs | default([]) + [item.0.item] }}"
+      when: item.0.stat.exists and item.1.stat.exists
+      loop: >
+        {{ letsencrypt_install_src_stats.results
+            | zip(letsencrypt_install_dest_stats.results)
+            | list
+        }}
+
+    - name: Define missed install certificate files
+      set_fact:
+        missed_installed_certs: "{{ missed_installed_certs + [item.item] }}"
+      when: not item.stat.exists
+      loop: "{{ letsencrypt_install_src_stats.results }}"
+
+    - name: Show new certs to install
+      debug:
+        var: new_installed_certs
+    - name: Show certs to update
+      debug:
+        var: update_installed_certs
+
+    - name: Show MISSED install certificate files
+      debug:
+        var: missed_installed_certs
+
+    - name: MISSED install files found, wait a moment (10s)
+      wait_for:
+        timeout: 10
+      when: missed_installed_certs | length > 0
+  tags:
+    - 'debug'
+
+# Install or update certificate files.
+- block:
+    - name: Install new letsencrypt certificates
+      copy:
+        src:  "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode }}"
+        force: no
+      loop: "{{ new_installed_certs }}"
+      register: certs_installed
+    # I should not change mode for existing certificates, because this may
+    # cause loop of `changed` status: this task will set some mode, but later
+    # task (e.g. for service using that certificate) will reset mode to some
+    # other value. Then on next playbook run this will happen again and again.
+    - name: Update existing letsencrypt certificates
+      copy:
+        src:  "{{ item.src }}"
+        dest: "{{ item.dest }}"
+      loop: "{{ update_installed_certs }}"
+      register: certs_updated
+  tags:
+    - 'debug'
+

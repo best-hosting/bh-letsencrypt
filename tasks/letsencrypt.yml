@@ -1,5 +1,6 @@
 ---
 
+# Generate files.
 - block:
     #pre_tasks:
     - name: Install required python modules
@@ -21,7 +22,7 @@
       loop: "{{ letsencrypt_files }}"
     - name: Generate private key
       openssl_privatekey:
-        path: "{{ item.privkey }}"
+        path: "{{ item.files.privkey }}"
         mode: 0600
         size: 2048
         type: RSA
@@ -30,30 +31,38 @@
       loop: "{{ letsencrypt_files }}"
     - name: Generate CSR
       openssl_csr:
-        privatekey_path:  "{{ item.privkey }}"
-        path:             "{{ item.csr }}"
+        privatekey_path:  "{{ item.files.privkey }}"
+        path:             "{{ item.files.csr }}"
         common_name:      "{{ item.cn }}"
         subject_alt_name: "{{ item.sans }}"
         force: no
         state: present
       loop: "{{ letsencrypt_files }}"
+    - name: Save server hostname
+      copy:
+        content: "{{ ansible_hostname }}"
+        dest:     "{{ item.files.created_by }}"
+      loop: "{{ letsencrypt_files }}"
+
   tags:
     - 'letsencrypt_files'
 
+# Ask for acme-1.
 - block:
     - name: Check saved acme challenge
       local_action: stat path=acme_challenge.txt
       register: acme_challenge_saved
     - name: acme stage 1
-      letsencrypt:
+      acme_certificate:
         account_key_content: "{{ item.acme_account_key }}"
         acme_directory: "https://acme-v02.api.letsencrypt.org/directory"
         acme_version: 2
         challenge: "dns-01"
-        csr:  "{{ item.csr }}"
-        # Delete old certificate before reissue!
-        dest: "{{ item.cert }}"
-        fullchain_dest: "{{ item.fullchain }}"
+        csr:  "{{ item.files.csr }}"
+        dest: "{{ item.files.cert }}"
+        fullchain_dest: "{{ item.files.fullchain }}"
+        chain_dest: "{{ item.files.chain }}"
+        remaining_days: 20
       when: not acme_challenge_saved.stat.exists
       register: acme_challenge
       loop: "{{ letsencrypt_files }}"
@@ -75,7 +84,19 @@
   tags:
     - 'acme_1'
 
+# Add RRs.
 - block:
+    - name: Delete certificate files, which i'm renewing now
+      file:
+        state: absent
+        path:  "{{ item.0.item.files[item.1] }}"
+      loop: >
+        {{ acme_challenge.results
+            | selectattr('challenge_data_dns', 'defined')
+            | product(['cert', 'fullchain', 'chain', 'pfx'])
+            | list
+        }}
+
     - name: Add acme DNS-01 challenge RRs
       nsupdate:
         key_algorithm:  "{{ item.1.ddns.key_algo }}"
@@ -88,33 +109,43 @@
         ttl:    60
         value:  "{{ item.0.challenge_data_dns[item.1.acme_key] }}"
         state:  present
-      when: acme_challenge is changed and item.0.challenge_data_dns[item.1.acme_key] is defined
-      with_nested:
-        - "{{ acme_challenge.results }}"
-        - "{{ cert_sans2 }}"
+      when: item.0.challenge_data_dns[item.1.acme_key] is defined
+      # FIXME: If i include ddns information in `letsencrypt_files` i don't
+      # need nested loop here, because it'll be available in `item` of
+      # `acme_challenge.results`. Also this allows to avoid notification to
+      # pdns slaves, which does not have any changes made.
+      loop: >
+        {{ acme_challenge.results
+            | selectattr('challenge_data_dns', 'defined')
+            | product(letsencrypt_sans)
+            | list
+        }}
       register: dns01_added
     - name: Explicitly notify pdns slaves
       command: pdns_control notify "{{ item.ddns.domain }}"
       delegate_to: "{{ item.ddns.server }}"
-      with_items: "{{ cert_sans2 }}"
-      when: acme_challenge is changed and dns01_added is changed
+      with_items: "{{ letsencrypt_sans }}"
+      when: dns01_added is changed
     - name: Wait for update to propagate or USER INTERRUPT before acme stage 2
       wait_for:
         timeout: 30
-      when: acme_challenge is changed and dns01_added is changed
+      when: dns01_added is changed
+  when: acme_challenge is changed
   tags:
     - 'acme_1'
 
+# Ask for acme-2.
 - block:
     - name: acme stage 2
-      letsencrypt:
+      acme_certificate:
         account_key_content: "{{ item.1.acme_account_key }}"
         acme_directory: "https://acme-v02.api.letsencrypt.org/directory"
         acme_version: 2
         challenge: "dns-01"
-        csr:  "{{ item.1.csr }}"
-        dest: "{{ item.1.cert }}"
-        fullchain_dest: "{{ item.1.fullchain }}"
+        csr:  "{{ item.1.files.csr }}"
+        dest: "{{ item.1.files.cert }}"
+        fullchain_dest: "{{ item.1.files.fullchain }}"
+        chain_dest: "{{ item.1.files.chain }}"
         data: "{{ item.0 }}"
       with_together:
         - "{{ acme_challenge.results }}"
@@ -129,7 +160,7 @@
         record: "{{ item.acme_key + '.' }}"
         type:   "TXT"
         state:  absent
-      with_items: "{{ cert_sans2 }}"
+      with_items: "{{ letsencrypt_sans }}"
       # FIXME: This following condition is false during re-run. On other hand,
       # it's required for correct operation, if nothing had changed (after
       # successful operation).
@@ -137,6 +168,34 @@
     - name: Remove saved acme challenge
       local_action: file path=acme_challenge.txt state=absent
       when: acme_challenge is changed
+    - name: Create pfx
+      # FIXME: Use `openssl_pkcs12` module. Requires ansible 2.7.
+      command: >
+        openssl pkcs12 -export -password 'pass:'
+          -inkey "{{ item.files.privkey }}"
+          -certfile "{{ item.files.chain }}"
+          -in "{{ item.files.cert }}"
+          -name 'huy'
+          -out "{{ item.files.pfx }}"
+      args:
+        creates: "{{ item.files.pfx }}"
+      loop: "{{ letsencrypt_files }}"
   tags:
     - 'acme_2'
+
+# Copy certificates to local db.
+- block:
+    - name: Create certificate dir in local db
+      local_action: file path={{ item.local_dir }} state=directory
+      loop: "{{ matched_certs + new_certs }}"
+    - name: Get cert files
+      synchronize:
+        mode: pull
+        recursive: yes
+        src: "{{ item.dir }}"
+        dest: "{{ item.local_dir }}"
+        delete: yes
+      loop: "{{ transfer_certs }}"
+  tags:
+    - 'letsencrypt_local_db'
 

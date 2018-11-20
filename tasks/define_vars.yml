@@ -5,13 +5,27 @@
         # to two-value list, where second value is word 'DNS:', then reverse
         # and join this internal list elements. So, i'll get valid SAN domain
         # name specification.
+        # FIXME: Rename `dir` to `remote_dir` .
         letsencrypt_files: >
-          {{ letsencrypt_files | default([]) + [item | combine(
+          {{ letsencrypt_files + [item | combine(
                 { 'dir'       : cert_root_dir + item.name + '/'
-                , 'privkey'   : cert_root_dir + item.name + '/privkey.key'
-                , 'csr'       : cert_root_dir + item.name + '/req.csr'
-                , 'cert'      : cert_root_dir + item.name + '/cert.pem'
-                , 'fullchain' : cert_root_dir + item.name + '/fullchain.pem'
+                , 'files':
+                  { 'privkey'   : cert_root_dir + item.name + cert_privkey_fn
+                  , 'csr'       : cert_root_dir + item.name + cert_csr_fn
+                  , 'cert'      : cert_root_dir + item.name + cert_cert_fn
+                  , 'fullchain' : cert_root_dir + item.name + cert_fullchain_fn
+                  , 'chain'     : cert_root_dir + item.name + cert_chain_fn
+                  , 'pfx'       : cert_root_dir + item.name + '/' + item.name + '.pfx'
+                  , 'created_by': cert_root_dir + item.name + cert_created_by_fn
+                  }
+                , 'local_dir' : local_cert_dir + item.name + '/'
+                , 'local_files':
+                  { 'privkey'   : local_cert_dir + item.name + cert_privkey_fn
+                  , 'cert'      : local_cert_dir + item.name + cert_cert_fn
+                  , 'fullchain' : local_cert_dir + item.name + cert_fullchain_fn
+                  , 'chain'     : local_cert_dir + item.name + cert_chain_fn
+                  , 'created_by': local_cert_dir + item.name + cert_created_by_fn
+                  }
                 , 'cn'        : item.sans[0].name
                 , 'sans'      : item.sans | map(attribute='name')
                     | zip_longest([], fillvalue='DNS:') | map('reverse') | map('join') | list
@@ -24,8 +38,8 @@
 
     - name: Build `acme_key` value for wildcard names.
       set_fact:
-        cert_sans2: >
-          {{ cert_sans2 | default([]) + [ item.1 | combine(
+        letsencrypt_sans: >
+          {{ letsencrypt_sans + [ item.1 | combine(
               { 'acme_key' : '_acme-challenge.' + item.1['name'].split('.')[1:] | join ('.')
               }) ]
           }}
@@ -35,8 +49,8 @@
         - sans
     - name: Build `acme_key` value for regular DNS names.
       set_fact:
-        cert_sans2: >
-          {{ cert_sans2 | default([]) + [ item.1 | combine(
+        letsencrypt_sans: >
+          {{ letsencrypt_sans + [ item.1 | combine(
               { 'acme_key' : '_acme-challenge.' + item.1['name'].split('.')[0:] | join ('.')
               }) ]
           }}
@@ -46,7 +60,7 @@
         - sans
     - name: Cert sans with `acme_key`
       debug:
-        var: cert_sans2
+        var: letsencrypt_sans
   tags:
     - 'debug'
 
