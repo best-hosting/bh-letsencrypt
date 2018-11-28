@@ -4,8 +4,6 @@
 - block:
     - name: Define local cert source pathes
       set_fact:
-        # By using incorrect mode for certificate files here i may trigger
-        # `restart` handler for corresponding service in later roles.
         letsencrypt_install: >
           {{ letsencrypt_install +
             [ { 'src' : local_cert_dir + item.letsencrypt_name + cert_fullchain_fn
@@ -24,6 +22,10 @@
               , 'mode': 600
               , 'letsencrypt_name' : item.letsencrypt_name
               } | combine(item.privkey | default({}), recursive=True)
+            , { 'src' : local_cert_dir + item.letsencrypt_name + cert_pfx_fn
+              , 'mode': 644
+              , 'letsencrypt_name' : item.letsencrypt_name
+              } | combine(item.pfx | default({}), recursive=True)
             ] | selectattr('dest', 'defined') | list
           }}
       when: item.letsencrypt_name is defined
