@@ -35,6 +35,10 @@
         zone:   "{{ item.ddns.domain }}"
         record: "{{ 'testssl1.' + item.ddns.domain + '.' }}"
         type: "TXT"
+        # For avoiding error "TypeError: argument 2 to map() must support
+        # iteration." in `nsupdate` module in ansible 2.7 i need to specify
+        # `value`.
+        value: []
         state: absent
       loop: "{{ letsencrypt_sans }}"
 

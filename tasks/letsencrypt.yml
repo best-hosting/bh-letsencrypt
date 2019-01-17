@@ -159,6 +159,7 @@
         zone:   "{{ item.ddns.domain }}"
         record: "{{ item.acme_key + '.' }}"
         type:   "TXT"
+        value:  []
         state:  absent
       with_items: "{{ letsencrypt_sans }}"
       # FIXME: This following condition is false during re-run. On other hand,
