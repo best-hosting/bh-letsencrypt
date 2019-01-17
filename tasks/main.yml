@@ -47,6 +47,7 @@
     - 'letsencrypt_local_db'
 
 - block:
+    # Set 'test_ddns=true' to perform ddns test.
     - name: Test ddns
       include_tasks: test_ddns.yml
       when: test_ddns
