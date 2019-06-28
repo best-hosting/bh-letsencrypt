@@ -2,7 +2,7 @@
 
 # Add letsencrypt certificates to `install_files` .
 - block:
-    - name: Define local cert source pathes
+    - name: install | Define local cert source pathes
       set_fact:
         letsencrypt_install: >
           {{ letsencrypt_install +
@@ -31,19 +31,19 @@
       when: item.letsencrypt_name is defined
       loop: "{{ install_certs }}"
 
-    - name: Stat local cert source files
+    - name: install | Stat local cert source files
       local_action:
         module: stat
         path: "{{ item.src }}"
       register: letsencrypt_install_src_stats
       loop: "{{ letsencrypt_install }}"
-    - name: Stat remote cert dest files
+    - name: install | Stat remote cert dest files
       stat:
         path: "{{ item.dest }}"
       register: letsencrypt_install_dest_stats
       loop: "{{ letsencrypt_install }}"
 
-    - name: Define new letsencrypt certificates to install
+    - name: install | Define new letsencrypt certificates to install
       set_fact:
         new_installed_certs: "{{ new_installed_certs + [item.0.item] }}"
       when: item.0.stat.exists and not item.1.stat.exists
@@ -52,7 +52,7 @@
             | zip(letsencrypt_install_dest_stats.results)
             | list
         }}
-    - name: Define existing letsencrypt certificates to update
+    - name: install | Define existing letsencrypt certificates to update
       set_fact:
         update_installed_certs: "{{ update_installed_certs | default([]) + [item.0.item] }}"
       when: item.0.stat.exists and item.1.stat.exists
@@ -62,24 +62,24 @@
             | list
         }}
 
-    - name: Define missed install certificate files
+    - name: install | Define missed install certificate files
       set_fact:
         missed_installed_certs: "{{ missed_installed_certs + [item.item] }}"
       when: not item.stat.exists
       loop: "{{ letsencrypt_install_src_stats.results }}"
 
-    - name: Show new certs to install
+    - name: install | Show new certs to install
       debug:
         var: new_installed_certs
-    - name: Show certs to update
+    - name: install | Show certs to update
       debug:
         var: update_installed_certs
 
-    - name: Show MISSED install certificate files
+    - name: install | Show MISSED install certificate files
       debug:
         var: missed_installed_certs
 
-    - name: MISSED install files found, wait a moment (10s)
+    - name: install | MISSED install files found, wait a moment (10s)
       wait_for:
         timeout: 10
       when: missed_installed_certs | length > 0
@@ -88,7 +88,7 @@
 
 # Install or update certificate files.
 - block:
-    - name: Install new letsencrypt certificates
+    - name: install | Install new letsencrypt certificates
       copy:
         src:  "{{ item.src }}"
         dest: "{{ item.dest }}"
@@ -100,7 +100,7 @@
     # cause loop of `changed` status: this task will set some mode, but later
     # task (e.g. for service using that certificate) will reset mode to some
     # other value. Then on next playbook run this will happen again and again.
-    - name: Update existing letsencrypt certificates
+    - name: install | Update existing letsencrypt certificates
       copy:
         src:  "{{ item.src }}"
         dest: "{{ item.dest }}"

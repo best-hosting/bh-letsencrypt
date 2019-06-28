@@ -3,7 +3,7 @@
 # Generate files.
 - block:
     #pre_tasks:
-    - name: Install required python modules
+    - name: letsencrypt | Install required python modules
       apt:
         name: "{{ item }}"
         state: present
@@ -12,7 +12,7 @@
         - python-dnspython
         - python-pyasn1
         - python-rsa
-    - name: Create directories for certificates
+    - name: letsencrypt | Create directories for certificates
       file:
         path: "{{ item.dir }}"
         mode: 0700
@@ -20,7 +20,7 @@
         group: root
         state: directory
       loop: "{{ letsencrypt_files }}"
-    - name: Generate private key
+    - name: letsencrypt | Generate private key
       openssl_privatekey:
         path: "{{ item.files.privkey }}"
         mode: 0600
@@ -29,7 +29,7 @@
         force: no
         state: present
       loop: "{{ letsencrypt_files }}"
-    - name: Generate CSR
+    - name: letsencrypt | Generate CSR
       openssl_csr:
         privatekey_path:  "{{ item.files.privkey }}"
         path:             "{{ item.files.csr }}"
@@ -38,7 +38,7 @@
         force: no
         state: present
       loop: "{{ letsencrypt_files }}"
-    - name: Save server hostname
+    - name: letsencrypt | Save server hostname
       copy:
         content: "{{ ansible_hostname }}"
         dest:     "{{ item.files.created_by }}"
@@ -49,10 +49,10 @@
 
 # Ask for acme-1.
 - block:
-    - name: Check saved acme challenge
+    - name: letsencrypt | Check saved acme challenge
       local_action: stat path=acme_challenge.txt
       register: acme_challenge_saved
-    - name: acme stage 1
+    - name: letsencrypt | acme stage 1
       acme_certificate:
         account_key_content: "{{ item.acme_account_key }}"
         acme_directory: "https://acme-v02.api.letsencrypt.org/directory"
@@ -68,17 +68,17 @@
       loop: "{{ letsencrypt_files }}"
     # This task _must_ follow `acme stage 1`, because otherwise `register` on
     # `acme stage 1` will overwrite loaded value of `acme_challenge`.
-    - name: Load acme challenge saved from prvious run, if any
+    - name: letsencrypt | Load acme challenge saved from prvious run
       set_fact:
         acme_challenge: "{{ lookup('file', 'acme_challenge.txt') }}"
       when: acme_challenge_saved.stat.exists
-    - name: Save acme challenge locally, if it was not loaded from file
+    - name: letsencrypt | Save acme challenge locally, if it was not loaded from file
       local_action: copy content={{ acme_challenge }} dest=acme_challenge.txt
       # `acme_challenge` is _not_ changed, when certificate is _not_ due for
       # renewal. And in that case there may be no saved challenge and i have
       # nothing to save either.
       when: not acme_challenge_saved.stat.exists and acme_challenge is changed
-    - name: Print acme challenge
+    - name: letsencrypt | Print acme challenge
       debug:
         var: acme_challenge
   tags:
@@ -86,7 +86,7 @@
 
 # Add RRs.
 - block:
-    - name: Delete certificate files, which i'm renewing now
+    - name: letsencrypt | Delete certificate files, which i'm renewing now
       file:
         state: absent
         path:  "{{ item.0.item.files[item.1] }}"
@@ -97,7 +97,7 @@
             | list
         }}
 
-    - name: Add acme DNS-01 challenge RRs
+    - name: letsencrypt | Add acme DNS-01 challenge RRs
       nsupdate:
         key_algorithm:  "{{ item.1.ddns.key_algo }}"
         key_name:       "{{ item.1.ddns.key_name }}"
@@ -121,12 +121,12 @@
             | list
         }}
       register: dns01_added
-    - name: Explicitly notify pdns slaves
+    - name: letsencrypt | Explicitly notify pdns slaves
       command: pdns_control notify "{{ item.ddns.domain }}"
       delegate_to: "{{ item.ddns.server }}"
       with_items: "{{ letsencrypt_sans }}"
       when: dns01_added is changed
-    - name: Wait for update to propagate or USER INTERRUPT before acme stage 2
+    - name: letsencrypt | Wait for update to propagate or USER INTERRUPT before acme stage 2
       wait_for:
         timeout: 30
       when: dns01_added is changed
@@ -136,7 +136,7 @@
 
 # Ask for acme-2.
 - block:
-    - name: acme stage 2
+    - name: letsencrypt | acme stage 2
       acme_certificate:
         account_key_content: "{{ item.1.acme_account_key }}"
         acme_directory: "https://acme-v02.api.letsencrypt.org/directory"
@@ -150,7 +150,7 @@
       with_together:
         - "{{ acme_challenge.results }}"
         - "{{ letsencrypt_files }}"
-    - name: Remove acme DNS-01 challenge RRs
+    - name: letsencrypt | Remove acme DNS-01 challenge RRs
       nsupdate:
         key_algorithm:  "{{ item.ddns.key_algo }}"
         key_name:       "{{ item.ddns.key_name }}"
@@ -166,10 +166,10 @@
       # it's required for correct operation, if nothing had changed (after
       # successful operation).
       when: acme_challenge is changed
-    - name: Remove saved acme challenge
+    - name: letsencrypt | Remove saved acme challenge
       local_action: file path=acme_challenge.txt state=absent
       when: acme_challenge is changed
-    - name: Create pfx
+    - name: letsencrypt | Create pfx
       # FIXME: Use `openssl_pkcs12` module. Requires ansible 2.7.
       command: >
         openssl pkcs12 -export -password 'pass:'
@@ -186,10 +186,10 @@
 
 # Copy certificates to local db.
 - block:
-    - name: Create certificate dir in local db
+    - name: letsencrypt | Create certificate dir in local db
       local_action: file path={{ item.local_dir }} state=directory
       loop: "{{ matched_certs + new_certs }}"
-    - name: Get cert files
+    - name: letsencrypt | Obtain cert files
       synchronize:
         mode: pull
         recursive: yes

@@ -5,12 +5,12 @@
 # tags from `include` task..
 - block:
     # This is a pre-task for role.
-    - name: Install required python modules
+    - name: test_ddns | Install required python modules
       apt:
         name: python-dnspython
         state: present
 
-    - name: Add test RR
+    - name: test_ddns | Add test RR
       nsupdate:
         key_algorithm:  "{{ item.ddns.key_algo }}"
         key_name:       "{{ item.ddns.key_name }}"
@@ -26,7 +26,7 @@
         state: present
       loop: "{{ letsencrypt_sans }}"
 
-    - name: Delete test RR
+    - name: test_ddns | Delete test RR
       nsupdate:
         key_algorithm:  "{{ item.ddns.key_algo }}"
         key_name:       "{{ item.ddns.key_name }}"
@@ -42,7 +42,7 @@
         state: absent
       loop: "{{ letsencrypt_sans }}"
 
-    - name: Explicitly notify pdns slaves about test RRs
+    - name: test_ddns | Explicitly notify pdns slaves about test RRs
       command: pdns_control notify "{{ item.ddns.domain }}"
       delegate_to: "{{ item.ddns.server }}"
       with_items: "{{ letsencrypt_sans }}"
