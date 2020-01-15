@@ -1,5 +1,5 @@
 - block:
-    - name: Define cert dir
+    - name: define | Cert dir.
       set_fact:
         # Generating `sans`: Select only `name` attribute, convert each element
         # to two-value list, where second value is word 'DNS:', then reverse
@@ -32,11 +32,11 @@
                 })]
           }}
       with_items: "{{ letsencrypt_certs }}"
-    - name: Added cert dir
+    - name: define | Print cert dir.
       debug:
         var: letsencrypt_files
 
-    - name: Build `acme_key` value for wildcard names.
+    - name: define | Build `acme_key` value for wildcard names.
       set_fact:
         letsencrypt_sans: >
           {{ letsencrypt_sans + [ item.1 | combine(
@@ -47,7 +47,7 @@
       with_subelements:
         - "{{ letsencrypt_certs }}"
         - sans
-    - name: Build `acme_key` value for regular DNS names.
+    - name: define | Build `acme_key` value for regular DNS names.
       set_fact:
         letsencrypt_sans: >
           {{ letsencrypt_sans + [ item.1 | combine(
@@ -58,7 +58,7 @@
       with_subelements:
         - "{{ letsencrypt_certs }}"
         - sans
-    - name: Cert sans with `acme_key`
+    - name: define | Cert sans with `acme_key`
       debug:
         var: letsencrypt_sans
   tags:

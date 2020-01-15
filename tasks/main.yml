@@ -49,7 +49,11 @@
 - block:
     # Set 'test_ddns=true' to perform ddns test.
     - name: Test ddns
-      include_tasks: test_ddns.yml
+      include_tasks:
+        file: test_ddns.yml
+        apply:
+          tags:
+            - test
       when: test_ddns
       tags:
         - 'test'
