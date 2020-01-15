@@ -4,14 +4,13 @@
 - block:
     #pre_tasks:
     - name: letsencrypt | Install required python modules
-      apt:
-        name: "{{ item }}"
+      package:
+        name:
+          - python-openssl
+          - python-dnspython
+          - python-pyasn1
+          - python-rsa
         state: present
-      with_items:
-        - python-openssl
-        - python-dnspython
-        - python-pyasn1
-        - python-rsa
     - name: letsencrypt | Create directories for certificates
       file:
         path: "{{ item.dir }}"
