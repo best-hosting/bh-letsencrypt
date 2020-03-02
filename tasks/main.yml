@@ -33,12 +33,7 @@
 - name: Define variables
   import_tasks: define_vars.yml
   tags:
-    - 'letsencrypt'
-    - 'letsencrypt_files'
-    - 'letsencrypt_local_db'
-    - 'test'
-    - 'acme_1'
-    - 'acme_2'
+    - always
 
 - name: Check local certs db
   import_tasks: local_cert_db.yml
@@ -56,7 +51,10 @@
             - test
       when: test_ddns
       tags:
-        - 'test'
+        - test
+        - test_ddns_add
+        - test_ddns_del
+        - test_ddns_notify
 
     - name: Obtain letsencrypt certificate.
       import_tasks: letsencrypt.yml

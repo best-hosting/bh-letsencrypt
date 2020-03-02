@@ -25,6 +25,8 @@
         value: ["hui", "huynya"]
         state: present
       loop: "{{ letsencrypt_sans }}"
+      tags:
+        - 'test_ddns_add'
 
     - name: test_ddns | Delete test RR
       nsupdate:
@@ -41,12 +43,13 @@
         value: []
         state: absent
       loop: "{{ letsencrypt_sans }}"
+      tags:
+        - 'test_ddns_del'
 
     - name: test_ddns | Explicitly notify pdns slaves about test RRs
       command: pdns_control notify "{{ item.ddns.domain }}"
       delegate_to: "{{ item.ddns.server }}"
       with_items: "{{ letsencrypt_sans }}"
-
-  tags:
-    - 'test'
+      tags:
+        - 'test_ddns_notify'
 
