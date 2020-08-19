@@ -1,33 +1,103 @@
 ---
 
+- block:
+    - name: Define nginx share roots
+      set_fact:
+        _nginx_share_roots: >-
+          {{ dict(ks | zip(vs)) }}
+      vars:
+        ks: >-
+          {{ _nginx_host_conf | map(attribute='share') | list }}
+        vs: >-
+          {{ _nginx_host_conf
+                | selectattr('share', 'defined')
+                | map(attribute='root')
+                | list
+          }}
+      when: _nginx_host_conf is defined
+
+    - name: Show nginx share roots dict
+      debug:
+        var: _nginx_share_roots
+
+    - name: install | Define certificates installed to share
+      set_fact:
+        letsencrypt_install_shared: >-
+          {{ letsencrypt_install_shared +
+            [ { 'src' : local_cert_dir + item.letsencrypt_name + cert_fullchain_fn
+              , 'mode': 644
+              , 'letsencrypt_name' : item.letsencrypt_name
+              , 'dest' : _nginx_share_roots[item.fullchain.share]
+                            + '/' + item.letsencrypt_name + '/' + cert_fullchain_fn
+              } | combine(item.fullchain)
+              if item.fullchain is defined and item.fullchain.share is defined else {}
+            , { 'src' : local_cert_dir + item.letsencrypt_name + cert_chain_fn
+              , 'mode': 644
+              , 'letsencrypt_name' : item.letsencrypt_name
+              , 'dest' : _nginx_share_roots[item.chain.share]
+                            + '/' + item.letsencrypt_name + '/' + cert_chain_fn
+              } | combine(item.chain)
+              if item.chain is defined and item.chain.share is defined else {}
+            , { 'src' : local_cert_dir + item.letsencrypt_name + cert_cert_fn
+              , 'mode': 644
+              , 'letsencrypt_name' : item.letsencrypt_name
+              , 'dest' : _nginx_share_roots[item.cert.share]
+                            + '/' + item.letsencrypt_name + '/' + cert_cert_fn
+              } | combine(item.cert)
+              if item.cert is defined and item.cert.share is defined else {}
+            , { 'src' : local_cert_dir + item.letsencrypt_name + cert_privkey_fn
+              , 'mode': 600
+              , 'letsencrypt_name' : item.letsencrypt_name
+              , 'dest' : _nginx_share_roots[item.privkey.share]
+                            + '/' + item.letsencrypt_name + '/' + cert_privkey_fn
+              } | combine(item.privkey)
+              if item.privkey is defined and item.privkey.share is defined else {}
+            , { 'src' : local_cert_dir + item.letsencrypt_name + cert_pfx_fn
+              , 'mode': 644
+              , 'letsencrypt_name' : item.letsencrypt_name
+              , 'dest' : _nginx_share_roots[item.pfx.share]
+                            + '/' + item.letsencrypt_name + '/' + cert_pfx_fn
+              } | combine(item.pfx)
+              if item.pfx is defined and item.pfx.share is defined else {}
+            ] | selectattr('dest', 'defined') | list
+          }}
+      vars:
+      when: item.letsencrypt_name is defined
+      loop: "{{ install_certs }}"
+
+    - name: install | Show certs install to share
+      debug:
+        var: letsencrypt_install_shared
+
 # Add letsencrypt certificates to `install_files` .
 - block:
     - name: install | Define local cert source pathes
       set_fact:
-        letsencrypt_install: >
+        letsencrypt_install: >-
           {{ letsencrypt_install +
             [ { 'src' : local_cert_dir + item.letsencrypt_name + cert_fullchain_fn
               , 'mode': 644
               , 'letsencrypt_name' : item.letsencrypt_name
-              } | combine(item.fullchain | default({}), recursive=True)
+              } | combine(item.fullchain | default({}))
             , { 'src' : local_cert_dir + item.letsencrypt_name + cert_chain_fn
               , 'mode': 644
               , 'letsencrypt_name' : item.letsencrypt_name
-              } | combine(item.chain | default({}), recursive=True)
+              } | combine(item.chain | default({}))
             , { 'src' : local_cert_dir + item.letsencrypt_name + cert_cert_fn
               , 'mode': 644
               , 'letsencrypt_name' : item.letsencrypt_name
-              } | combine(item.cert | default({}), recursive=True)
+              } | combine(item.cert | default({}))
             , { 'src' : local_cert_dir + item.letsencrypt_name + cert_privkey_fn
               , 'mode': 600
               , 'letsencrypt_name' : item.letsencrypt_name
-              } | combine(item.privkey | default({}), recursive=True)
+              } | combine(item.privkey | default({}))
             , { 'src' : local_cert_dir + item.letsencrypt_name + cert_pfx_fn
               , 'mode': 644
               , 'letsencrypt_name' : item.letsencrypt_name
-              } | combine(item.pfx | default({}), recursive=True)
+              } | combine(item.pfx | default({}))
             ] | selectattr('dest', 'defined') | list
           }}
+      vars:
       when: item.letsencrypt_name is defined
       loop: "{{ install_certs }}"
 
@@ -37,6 +107,7 @@
         path: "{{ item.src }}"
       register: letsencrypt_install_src_stats
       loop: "{{ letsencrypt_install }}"
+
     - name: install | Stat remote cert dest files
       stat:
         path: "{{ item.dest }}"
@@ -52,6 +123,7 @@
             | zip(letsencrypt_install_dest_stats.results)
             | list
         }}
+
     - name: install | Define existing letsencrypt certificates to update
       set_fact:
         update_installed_certs: "{{ update_installed_certs | default([]) + [item.0.item] }}"
@@ -71,6 +143,7 @@
     - name: install | Show new certs to install
       debug:
         var: new_installed_certs
+
     - name: install | Show certs to update
       debug:
         var: update_installed_certs
@@ -83,10 +156,29 @@
       wait_for:
         timeout: 10
       when: missed_installed_certs | length > 0
+
   tags:
     - 'debug'
 
 # Install or update certificate files.
+- block:
+    - name: install (nginx_host) | Create directories on share
+      file:
+        path: "{{ item.dest | dirname }}"
+        state: directory
+        force: no
+      loop: "{{ letsencrypt_install_shared }}"
+
+    - name: install (nginx_host) | Install certificates to share
+      copy:
+        src:  "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode }}"
+        force: no
+      loop: "{{ letsencrypt_install_shared }}"
+
+  delegate_to: "{{ nginx_host }}"
+
 - block:
     - name: install | Install new letsencrypt certificates
       copy:

@@ -36,6 +36,9 @@ matched_certs: []
 ## These variables are used during installation of certificates from local db.
 
 # Local letsencrypt certificates to install.
+letsencrypt_install_shared: []
+
+# Local letsencrypt certificates to install.
 letsencrypt_install: []
 
 # New certificate files to install. I may set mode for these files in
