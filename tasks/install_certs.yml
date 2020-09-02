@@ -7,11 +7,14 @@
           {{ dict(ks | zip(vs)) }}
       vars:
         ks: >-
-          {{ _nginx_host_conf | map(attribute='share') | list }}
+          {{ _nginx_host_conf
+                | selectattr('share', 'defined')
+                | map(attribute='share')
+                | list
+          }}
         vs: >-
           {{ _nginx_host_conf
                 | selectattr('share', 'defined')
-                | map(attribute='root')
                 | list
           }}
       when: _nginx_host_conf is defined
@@ -27,36 +30,41 @@
             [ { 'src' : local_cert_dir + item.letsencrypt_name + cert_fullchain_fn
               , 'mode': 644
               , 'letsencrypt_name' : item.letsencrypt_name
-              , 'dest' : _nginx_share_roots[item.fullchain.share]
+              , 'dest' : _nginx_share_roots[item.fullchain.share].root
                             + '/' + item.letsencrypt_name + '/' + cert_fullchain_fn
+              , 'server' : _nginx_share_roots[item.fullchain.share].server
               } | combine(item.fullchain)
               if item.fullchain is defined and item.fullchain.share is defined else {}
             , { 'src' : local_cert_dir + item.letsencrypt_name + cert_chain_fn
               , 'mode': 644
               , 'letsencrypt_name' : item.letsencrypt_name
-              , 'dest' : _nginx_share_roots[item.chain.share]
+              , 'dest' : _nginx_share_roots[item.chain.share].root
                             + '/' + item.letsencrypt_name + '/' + cert_chain_fn
+              , 'server' : _nginx_share_roots[item.chain.share].server
               } | combine(item.chain)
               if item.chain is defined and item.chain.share is defined else {}
             , { 'src' : local_cert_dir + item.letsencrypt_name + cert_cert_fn
               , 'mode': 644
               , 'letsencrypt_name' : item.letsencrypt_name
-              , 'dest' : _nginx_share_roots[item.cert.share]
+              , 'dest' : _nginx_share_roots[item.cert.share].root
                             + '/' + item.letsencrypt_name + '/' + cert_cert_fn
+              , 'server' : _nginx_share_roots[item.cert.share].server
               } | combine(item.cert)
               if item.cert is defined and item.cert.share is defined else {}
             , { 'src' : local_cert_dir + item.letsencrypt_name + cert_privkey_fn
               , 'mode': 600
               , 'letsencrypt_name' : item.letsencrypt_name
-              , 'dest' : _nginx_share_roots[item.privkey.share]
+              , 'dest' : _nginx_share_roots[item.privkey.share].root
                             + '/' + item.letsencrypt_name + '/' + cert_privkey_fn
+              , 'server' : _nginx_share_roots[item.privkey.share].server
               } | combine(item.privkey)
               if item.privkey is defined and item.privkey.share is defined else {}
             , { 'src' : local_cert_dir + item.letsencrypt_name + cert_pfx_fn
               , 'mode': 644
               , 'letsencrypt_name' : item.letsencrypt_name
-              , 'dest' : _nginx_share_roots[item.pfx.share]
+              , 'dest' : _nginx_share_roots[item.pfx.share].root
                             + '/' + item.letsencrypt_name + '/' + cert_pfx_fn
+              , 'server' : _nginx_share_roots[item.pfx.share].server
               } | combine(item.pfx)
               if item.pfx is defined and item.pfx.share is defined else {}
             ] | selectattr('dest', 'defined') | list
@@ -168,6 +176,7 @@
         state: directory
         force: no
       loop: "{{ letsencrypt_install_shared }}"
+      delegate_to: "{{ item.server }}"
 
     - name: install (nginx_host) | Install certificates to share
       copy:
@@ -176,8 +185,7 @@
         mode: "{{ item.mode }}"
         force: no
       loop: "{{ letsencrypt_install_shared }}"
-
-  delegate_to: "{{ nginx_host }}"
+      delegate_to: "{{ item.server }}"
 
 - block:
     - name: install | Install new letsencrypt certificates
