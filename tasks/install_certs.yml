@@ -183,7 +183,7 @@
         src:  "{{ item.src }}"
         dest: "{{ item.dest }}"
         mode: "{{ item.mode }}"
-        force: no
+        force: yes
       loop: "{{ letsencrypt_install_shared }}"
       delegate_to: "{{ item.server }}"
 
