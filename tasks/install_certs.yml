@@ -7,17 +7,17 @@
           {{ dict(ks | zip(vs)) }}
       vars:
         ks: >-
-          {{ _nginx_host_conf
-                | selectattr('share', 'defined')
-                | map(attribute='share')
+          {{ _nginx_host_shares
+                | selectattr('vhost', 'defined')
+                | map(attribute='vhost')
                 | list
           }}
         vs: >-
-          {{ _nginx_host_conf
-                | selectattr('share', 'defined')
+          {{ _nginx_host_shares
+                | selectattr('vhost', 'defined')
                 | list
           }}
-      when: _nginx_host_conf is defined
+      when: _nginx_host_shares is defined
 
     - name: Show nginx share roots dict
       debug:
