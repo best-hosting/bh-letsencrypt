@@ -1,7 +1,7 @@
 ---
 
 - block:
-    - name: Define nginx share roots
+    - name: Define nginx share vhosts root
       set_fact:
         _nginx_share_roots: >-
           {{ dict(ks | zip(vs)) }}
