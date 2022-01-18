@@ -12,6 +12,17 @@ cert_root_dir:        "/etc/letsencrypt/ansible/"
 test_ddns:  false
 
 # Certificates to request from letsencrypt.
+# 'select_chain' - (optional) select an alternate trust chain provided by ACME
+# server. Value should be a _dictionary_ of conditions (which are ANDed) and
+# value should a _single_ valid list element of 'acme_certificate' module's
+# 'select_chain' parameter (see module description for available conditions).
+# E.g. for selecting Let's encrypt short chain, i may use
+#
+#   - test_certificates: last
+#     issuer:
+#       CN: "ISRG Root X1"
+#       O: "Internet Security Research Group"
+#
 letsencrypt_certs: []
 
 # Certificates to install from local cert db.

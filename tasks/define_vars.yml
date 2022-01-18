@@ -29,6 +29,11 @@
                 , 'cn'        : item.sans[0].name
                 , 'sans'      : item.sans | map(attribute='name')
                     | zip_longest([], fillvalue='DNS:') | map('reverse') | map('join') | list
+                , 'select_chain' :
+                    [ { 'test_certificates': 'last' } | combine(item.select_chain)
+                        if item.select_chain is defined
+                        else {}
+                    ]
                 })]
           }}
       with_items: "{{ letsencrypt_certs }}"

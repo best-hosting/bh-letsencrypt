@@ -146,6 +146,7 @@
         fullchain_dest: "{{ item.1.files.fullchain }}"
         chain_dest: "{{ item.1.files.chain }}"
         data: "{{ item.0 }}"
+        select_chain: "{{ item.1.select_chain }}"
       with_together:
         - "{{ acme_challenge.results }}"
         - "{{ letsencrypt_files }}"
