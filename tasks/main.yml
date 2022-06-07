@@ -65,7 +65,5 @@
 - name: Install letsencrypt certificates from local db
   import_tasks: install_certs.yml
   tags:
-    - 'letsencrypt'
-    - 'letsencrypt_install'
     - 'ssl'
 
